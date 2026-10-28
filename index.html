@@ -68,11 +68,11 @@ canvas { display:block; width:100%; height:100%; touch-action:none; }
   .topbar h1 { font-size:1rem; }
   .topbar h1 small { display:none; }
   .topbar button { min-height:34px; padding:2px 10px; }
-  .board { width:auto; max-width:100%; height:calc(100svh - 64px); }
+  .board { width:min(calc((100svh - 64px) * 16 / 9), calc(100% - 2 * (min(20vw, 150px) + 24px))); height:auto; max-width:100%; }
   .touch { position:absolute; left:0; right:0; bottom:10px; padding:0 14px; pointer-events:none; justify-content:space-between; }
   .touch .pad { pointer-events:auto; flex:none; opacity:0.72; }
-  .touch .move { width:min(26vw, 210px); }
-  .touch .act { width:min(21vw, 170px); }
+  .touch .move { width:min(20vw, 150px); }
+  .touch .act { width:min(20vw, 150px); }
   .touch button { min-height:44px; background:rgba(18,26,46,0.78); }
   .touch button.on { background:var(--accent); }
 }
@@ -173,10 +173,25 @@ footer { color:var(--muted); font-size:0.8rem; }
       <p>Blocking cuts damage by 85% and fills a little meter, but you cannot block in the air. Kicks are low, so a good jump avoids them.</p>
       <h3>Modes</h3>
       <p><b>Arcade ladder</b> sends four opponents at you with rising difficulty, ending with the Genesis boss. <b>Quick fight</b> lets you pick your opponent and difficulty. <b>2 players</b> is local versus on one keyboard.</p>
+      <h3>Daily challenge</h3>
+      <p>Every day at 00:00 UTC there is a new challenge: a set opponent, arena, difficulty and a rule twist, the same for everyone. Win one fight to clear it. Clear it on consecutive days to build your daily streak. You can retry as often as you like, and miss a day and the streak resets.</p>
       <h3>Supporters</h3>
       <p>A tip of 0.01 XNO or more unlocks the Genesis fighter and the Gold Vault arena. Tips are optional and the whole game is free.</p>
     </div>
   </details>
+
+  <section class="card" id="daily-card" aria-label="Daily challenge">
+    <h2>Daily challenge <span class="mono" id="d-no"></span></h2>
+    <p id="d-desc"></p>
+    <div class="stats">
+      <div class="stat"><small>Daily streak</small><b id="d-streak">0</b></div>
+      <div class="stat"><small>Best streak</small><b id="d-best">0</b></div>
+      <div class="stat"><small>Days cleared</small><b id="d-cleared">0</b></div>
+      <div class="stat"><small>Today</small><b id="d-today">Open</b></div>
+    </div>
+    <div class="row"><button type="button" class="primary" id="d-play">Play today's challenge</button></div>
+    <p class="hint" id="d-reset"></p>
+  </section>
 
   <section class="card" id="stats-card" aria-label="Your record">
     <h2>Your record</h2>
@@ -221,7 +236,7 @@ footer { color:var(--muted); font-size:0.8rem; }
     </div>
   </aside>
 
-  <footer>Only send XNO to the address shown above. Transfers on the Nano network cannot be reversed. <span class="mono">v1.1</span></footer>
+  <footer>Only send XNO to the address shown above. Transfers on the Nano network cannot be reversed. <span class="mono">v1.2</span></footer>
 </div>
 
 <div class="modal" id="ov" role="dialog" aria-modal="true" hidden></div>
@@ -276,7 +291,57 @@ footer { color:var(--muted); font-size:0.8rem; }
   const stats = Object.assign({ played: 0, won: 0, lost: 0, streak: 0, bestStreak: 0, chain: 0, ladderBest: 0, ladderClears: 0 }, jget("cc-stats", {}));
   function saveStats() { lsSet("cc-stats", JSON.stringify(stats)); }
   function arenaById(id) { return ARENAS.find(function (a) { return a.id === id; }) || ARENAS[0]; }
-  function arena() { const a = arenaById(arenaId); return (a.locked && !supporter) ? ARENAS[0] : a; }
+  function arena() {
+    if (m && m.mode === "daily") return arenaById(m.cfg.arena);
+    const a = arenaById(arenaId); return (a.locked && !supporter) ? ARENAS[0] : a;
+  }
+
+  // ---------- daily challenge ----------
+  // Same opponent, arena, difficulty and twist for everyone on each UTC day.
+  const EPOCH = Date.UTC(2026, 9, 28);
+  const TWISTS = [
+    { id: "lowgrav", name: "Low Gravity", desc: "Everyone jumps higher and floats longer.", grav: 0.42 },
+    { id: "glass", name: "Glass Cannons", desc: "Everyone has 60% health.", hp: 0.6 },
+    { id: "loaded", name: "Loaded Meters", desc: "Both fighters start with a full Chain Strike.", start: 100 },
+    { id: "heavy", name: "Heavy Hitters", desc: "All damage is 40% higher.", dmg: 1.4 },
+    { id: "charge", name: "Fast Charge", desc: "Meters fill twice as fast.", meter: 2 }
+  ];
+  let mod = null;
+  function mv(k, d) { return mod && mod[k] !== undefined ? mod[k] : d; }
+  function dateKey(d) { return (d || new Date()).toISOString().slice(0, 10); }
+  function prevKey(k) { return dateKey(new Date(Date.parse(k + "T00:00:00Z") - 864e5)); }
+  function dayNumber(k) { return Math.round((Date.parse(k + "T00:00:00Z") - EPOCH) / 864e5) + 1; }
+  function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+  function seeded(seed) {
+    let a = seed;
+    return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  }
+  function dailyFor(key) {
+    const r = seeded(hashStr("cc-daily-" + key)), pool = ROSTER.filter(function (d) { return !d.locked; }), ars = ARENAS.filter(function (a) { return !a.locked; });
+    return { key: key, no: dayNumber(key), opp: pool[Math.floor(r() * pool.length)], tw: TWISTS[Math.floor(r() * TWISTS.length)], arena: ars[Math.floor(r() * ars.length)], diff: r() < 0.5 ? "normal" : "hard" };
+  }
+  const daily = Object.assign({ last: "", streak: 0, best: 0, cleared: 0 }, jget("cc-daily", {}));
+  function liveStreak() { const k = dateKey(); return (daily.last === k || daily.last === prevKey(k)) ? daily.streak : 0; }
+  function recordDaily(key) {
+    if (daily.last === key) return;
+    daily.streak = daily.last === prevKey(key) ? daily.streak + 1 : 1;
+    daily.last = key; daily.best = Math.max(daily.best, daily.streak); daily.cleared++;
+    lsSet("cc-daily", JSON.stringify(daily));
+  }
+  function dailyInfo() {
+    const dc = dailyFor(dateKey());
+    return "<p><b>Twist: " + dc.tw.name + ".</b> " + dc.tw.desc + " Opponent: " + dc.opp.name + " (" + dc.diff + "). Win to keep your streak.</p>";
+  }
+  function renderDaily() {
+    const dc = dailyFor(dateKey()), done = daily.last === dc.key, s = liveStreak();
+    $("d-no").textContent = "#" + dc.no;
+    $("d-desc").textContent = "Beat " + dc.opp.name + " on " + dc.diff + ". Twist: " + dc.tw.name + ". " + dc.tw.desc + " Win to keep your streak.";
+    $("d-streak").textContent = s; $("d-best").textContent = daily.best; $("d-cleared").textContent = daily.cleared;
+    $("d-today").textContent = done ? "Cleared" : "Open";
+    $("d-play").textContent = done ? "Play again (streak already counted)" : "Play today's challenge";
+    const left = Math.max(0, Date.parse(dc.key + "T00:00:00Z") + 864e5 - Date.now()), hh = Math.floor(left / 36e5), mm = Math.floor(left % 36e5 / 6e4);
+    $("d-reset").textContent = "The same challenge for everyone. New one in " + hh + "h " + mm + "m (00:00 UTC)." + (!done && s > 0 ? " Clear it today to extend your streak." : "");
+  }
 
   // ---------- audio ----------
   let ac = null;
@@ -301,7 +366,7 @@ footer { color:var(--muted); font-size:0.8rem; }
   }
   function resetFighter(f) {
     f.x = f.side === 0 ? 240 : 560; f.y = GROUND; f.vx = 0; f.vy = 0; f.face = f.side === 0 ? 1 : -1;
-    f.hp = f.max; f.ghost = f.max; f.state = "idle"; f.t = 0; f.koT = 0; f.atk = null; f.stun = 0; f.meter = 0;
+    f.hp = f.max; f.ghost = f.max; f.state = "idle"; f.t = 0; f.koT = 0; f.atk = null; f.stun = 0; f.meter = mv("start", 0);
     f.chain = 0; f.chainT = 0; f.buf = null; f.blocking = false; f.win = false; f.flash = 0; f.pulse = 0;
   }
 
@@ -360,7 +425,7 @@ footer { color:var(--muted); font-size:0.8rem; }
   function phys(f, fr) {
     f.x += f.vx;
     if (f.y < GROUND || f.vy < 0) {
-      f.vy += GRAV; f.y += f.vy; f.vx *= 0.995;
+      f.vy += mv("grav", GRAV); f.y += f.vy; f.vx *= 0.995;
       if (f.y >= GROUND) { f.y = GROUND; f.vy = 0; if (f.state === "jump") f.state = "idle"; dust(f.x, GROUND, 4); }
     } else { f.vx *= fr; }
     f.x = Math.max(34, Math.min(W - 34, f.x));
@@ -431,20 +496,20 @@ footer { color:var(--muted); font-size:0.8rem; }
     const blocked = def.blocking && def.y >= GROUND && def.state !== "hurt";
     const cx = def.x - att.face * 14, cy = def.y - (a.type === "kick" ? 34 : 78);
     if (blocked) {
-      def.hp = Math.max(1, def.hp - a.dmg * att.def.power * 0.15);
-      def.vx = att.face * a.kb * 0.7; def.meter = Math.min(100, def.meter + 3); att.meter = Math.min(100, att.meter + 2);
+      def.hp = Math.max(1, def.hp - a.dmg * att.def.power * mv("dmg", 1) * 0.15);
+      def.vx = att.face * a.kb * 0.7; def.meter = Math.min(100, def.meter + 3 * mv("meter", 1)); att.meter = Math.min(100, att.meter + 2 * mv("meter", 1));
       sparks(cx, cy, "#9fd0ff", 6, 3); addText(cx, cy - 20, "BLOCK", "#9fd0ff");
       beep(130, 0.07, "sawtooth", 0.05, -40); hitstop = Math.max(hitstop, 3); shake = Math.max(shake, 2);
       return;
     }
     att.chain++; att.chainT = CHAIN_WINDOW; att.pulse = 1; att.best = Math.max(att.best, att.chain);
     const mult = 1 + 0.12 * Math.min(att.chain - 1, 6);
-    def.hp = Math.max(0, def.hp - a.dmg * att.def.power * mult);
+    def.hp = Math.max(0, def.hp - a.dmg * att.def.power * mult * mv("dmg", 1));
     def.stun = Math.max(10, a.stun - 3 * Math.max(0, att.chain - 2));
     def.state = "hurt"; def.atk = null; def.buf = null; def.blocking = false;
     def.vx = att.face * a.kb; if (a.type !== "punch" && def.y >= GROUND) def.vy = -3.5;
     def.chain = 0; def.chainT = 0; def.flash = 6;
-    att.meter = Math.min(100, att.meter + 10); def.meter = Math.min(100, def.meter + 5);
+    att.meter = Math.min(100, att.meter + 10 * mv("meter", 1)); def.meter = Math.min(100, def.meter + 5 * mv("meter", 1));
     sparks(cx, cy, att.def.accent, 10 + att.chain * 2, 5); sparks(cx, cy, "#ffffff", 4, 4);
     if (att.chain > 1) addText(cx, cy - 26, "CHAIN x" + att.chain, att.def.accent);
     beep(190 + att.chain * 22, 0.09, "square", 0.06, -100);
@@ -524,6 +589,8 @@ footer { color:var(--muted); font-size:0.8rem; }
     closeModal(); paused = false;
     const f1 = mk(c.p1, 0, true), f2 = mk(c.p2, 1, c.mode === "2p");
     f2.diff = c.diff || "normal";
+    mod = c.mod || null;
+    f1.max = Math.round(f1.max * mv("hp", 1)); f2.max = Math.round(f2.max * mv("hp", 1));
     m = { mode: c.mode, p1: f1, p2: f2, round: 1, wins: [0, 0], diff: c.diff, ladder: c.ladder || null, idx: c.idx || 0, cfg: c };
     pressQ.length = 0; startRound();
   }
@@ -546,12 +613,13 @@ footer { color:var(--muted); font-size:0.8rem; }
       stats.played++;
       if (win) { stats.won++; stats.streak++; stats.bestStreak = Math.max(stats.bestStreak, stats.streak); } else { stats.lost++; stats.streak = 0; }
       stats.chain = Math.max(stats.chain, m.p1.best);
+      if (m.mode === "daily" && win) recordDaily(m.cfg.dk);
       if (m.mode === "arcade") {
         const beaten = win ? m.idx + 1 : m.idx;
         stats.ladderBest = Math.max(stats.ladderBest, beaten);
         if (win && m.idx === m.ladder.length - 1) stats.ladderClears++;
       }
-      saveStats(); renderStats();
+      saveStats(); renderStats(); renderDaily();
     }
     showResult(win);
   }
@@ -708,6 +776,10 @@ footer { color:var(--muted); font-size:0.8rem; }
     ctx.fillStyle = "rgba(8,12,24,0.85)"; hexPath(W / 2, 32, 28); ctx.fill(); ctx.strokeStyle = "#ffb020"; ctx.lineWidth = 2; ctx.stroke();
     ctx.font = "600 24px JetBrains Mono, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#e8eefc";
     ctx.fillText(String(Math.max(0, Math.ceil(timer / 60))), W / 2, 33);
+    if (m.mode === "daily") {
+      ctx.font = "600 10px JetBrains Mono, monospace"; ctx.fillStyle = "#93a3c0"; ctx.textBaseline = "alphabetic";
+      ctx.fillText("DAILY #" + m.cfg.no + " · " + m.cfg.mod.name.toUpperCase(), W / 2, 92);
+    }
     for (let s = 0; s < 2; s++) {
       const f = s === 0 ? m.p1 : m.p2;
       if (f.chain >= 2) {
@@ -739,7 +811,10 @@ footer { color:var(--muted); font-size:0.8rem; }
     ctx.restore();
     if (m) {
       drawHUD();
-      if (phase === "intro") { if (phaseT < 60) banner("ROUND " + m.round, 54, "#e8eefc"); else banner("FIGHT!", 66, "#ffb020"); }
+      if (phase === "intro") {
+        if (phaseT < 60) banner("ROUND " + m.round, 54, "#e8eefc"); else banner("FIGHT!", 66, "#ffb020");
+        if (m.mode === "daily") { ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = "600 15px JetBrains Mono, monospace"; ctx.fillStyle = "#ffd166"; ctx.fillText("Twist: " + m.cfg.mod.name + ". " + m.cfg.mod.desc, W / 2, 245); }
+      }
       else if (phase === "roundEnd") banner(roundMsg, 66, "#ffb020");
     } else {
       ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = "800 44px Sora, sans-serif"; ctx.fillStyle = "#e8eefc";
@@ -773,18 +848,19 @@ footer { color:var(--muted); font-size:0.8rem; }
   function menuScreen() {
     modal(title("Crypto Clash", "Chain Strike") +
       "<p>Land hits to build a chain. Longer chains hit harder. Fill your meter and fire a Chain Strike.</p>" +
-      '<div class="stack"><button type="button" class="primary" data-act="mode" data-v="arcade">Arcade ladder</button>' +
+      '<div class="stack"><button type="button" class="primary" data-act="mode" data-v="daily">Daily challenge #' + dailyFor(dateKey()).no + (daily.last === dateKey() ? " (cleared)" : "") + "</button>" +
+      '<button type="button" data-act="mode" data-v="arcade">Arcade ladder</button>' +
       '<button type="button" data-act="mode" data-v="quick">Quick fight</button>' +
       '<button type="button" data-act="mode" data-v="2p">2 players, one keyboard</button>' +
       '<button type="button" data-act="rules">How to play</button></div>' +
-      '<p class="small">Ladder best: ' + stats.ladderBest + "/4. Fights won: " + stats.won + ".</p>" +
+      '<p class="small">Daily streak: ' + liveStreak() + ". Ladder best: " + stats.ladderBest + "/4. Fights won: " + stats.won + ".</p>" +
       (m ? '<button type="button" data-act="resume">Back to the fight</button>' : ""));
   }
   function pickScreen() {
     let t, sub, act, forOpp = false;
-    if (sel.step === "p1") { t = sel.mode === "2p" ? "Player 1: choose a fighter" : "Choose your fighter"; sub = sel.mode === "arcade" ? "Arcade ladder" : sel.mode === "quick" ? "Quick fight" : "2 players"; act = "pick"; }
+    if (sel.step === "p1") { t = sel.mode === "2p" ? "Player 1: choose a fighter" : "Choose your fighter"; sub = sel.mode === "arcade" ? "Arcade ladder" : sel.mode === "daily" ? "Daily #" + dailyFor(dateKey()).no : sel.mode === "quick" ? "Quick fight" : "2 players"; act = "pick"; }
     else { t = sel.mode === "2p" ? "Player 2: choose a fighter" : "Choose your opponent"; sub = "Quick fight"; act = "pick"; forOpp = true; if (sel.mode === "2p") sub = "2 players"; }
-    modal(title(t, sub) + '<div class="grid">' + ROSTER.map(function (d) { return fighterBtn(d, act, forOpp); }).join("") + "</div>" + '<button type="button" data-act="menu">Back</button>');
+    modal(title(t, sub) + (sel.mode === "daily" && sel.step === "p1" ? dailyInfo() : "") + '<div class="grid">' + ROSTER.map(function (d) { return fighterBtn(d, act, forOpp); }).join("") + "</div>" + '<button type="button" data-act="menu">Back</button>');
   }
   function diffScreen() {
     modal(title("Pick a difficulty", "Quick fight") + "<p>Opponent: " + sel.p2.name + "</p>" +
@@ -796,6 +872,15 @@ footer { color:var(--muted); font-size:0.8rem; }
   }
   function showResult(win) {
     const two = m.mode === "2p", last = m.mode === "arcade" && m.idx === m.ladder.length - 1;
+    if (m.mode === "daily") {
+      const st = liveStreak();
+      let d = title(win ? "Daily #" + m.cfg.no + " cleared" : "Daily #" + m.cfg.no + ": not yet", win ? "Streak: " + st + " day" + (st === 1 ? "" : "s") : "Win to keep your streak") +
+        '<div class="big">x' + m.p1.best + '</div><p class="small">Your best chain this fight.</p><div class="stack">';
+      if (win) d += '<button type="button" class="primary" data-act="share">Share your streak</button>';
+      else d += '<button type="button" class="primary" data-act="restart">Retry the daily</button>';
+      d += '<div class="row2"><button type="button" data-act="tip">Tip 0.01 XNO</button><button type="button" data-act="quit">Menu</button></div></div><div class="status" id="o-status" role="status"></div>';
+      modal(d); return;
+    }
     let h;
     if (two) h = title(m.wins[0] >= 2 ? "Player 1 wins" : "Player 2 wins", "Round score " + m.wins[0] + " to " + m.wins[1]);
     else h = title(win ? (m.mode === "arcade" && last ? "Ladder cleared" : "Victory") : "Defeated", "Round score " + m.wins[0] + " to " + m.wins[1]);
@@ -815,8 +900,8 @@ footer { color:var(--muted); font-size:0.8rem; }
   function copyText(text, ok, fail) { try { navigator.clipboard.writeText(text).then(ok, fail); } catch (e) { fail(); } }
   function shareUrl() { return location.href.split("#")[0].split("?")[0]; }
   function doShare() {
-    const opp = m.p2.def.name;
-    const msg = (m.wins[0] >= 2 ? "I beat " + opp + " " + m.wins[0] + " to " + m.wins[1] : "I lost to " + opp + " " + m.wins[0] + " to " + m.wins[1]) + " in Crypto Clash: Chain Strike with a x" + m.p1.best + " chain. Can you beat it? " + shareUrl();
+    const opp = m.p2.def.name, dly = m.mode === "daily" ? "Crypto Clash Daily #" + m.cfg.no + " (" + m.cfg.mod.name + "): cleared with a x" + m.p1.best + " chain. " + liveStreak() + " day streak! Can you beat it? " + shareUrl() : "";
+    const msg = dly || (m.wins[0] >= 2 ? "I beat " + opp + " " + m.wins[0] + " to " + m.wins[1] : "I lost to " + opp + " " + m.wins[0] + " to " + m.wins[1]) + " in Crypto Clash: Chain Strike with a x" + m.p1.best + " chain. Can you beat it? " + shareUrl();
     function fallback() { copyText(msg, function () { const s = $("o-status"); if (s) s.textContent = "Copied. Paste it into a message to challenge a friend."; }, function () { const s = $("o-status"); if (s) s.textContent = msg; }); }
     if (navigator.share) { navigator.share({ text: msg }).catch(fallback); return; }
     fallback();
@@ -826,6 +911,11 @@ footer { color:var(--muted); font-size:0.8rem; }
     for (let i = others.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = others[i]; others[i] = others[j]; others[j] = t; }
     const boss = p1.id === "genesis" ? others.pop() : ROSTER[4];
     return others.slice(0, 3).concat([boss]);
+  }
+  function startDaily(p1) {
+    const dc = dailyFor(dateKey()), pool = ROSTER.filter(function (x) { return !x.locked; });
+    let opp = dc.opp; if (opp === p1) opp = pool[(pool.indexOf(opp) + 1) % pool.length];
+    startMatch({ mode: "daily", p1: p1, p2: opp, diff: dc.diff, mod: dc.tw, dk: dc.key, no: dc.no, arena: dc.arena.id });
   }
   const LADDER_DIFF = ["easy", "normal", "normal", "hard"];
   function startArcade(p1, ladder, idx) { startMatch({ mode: "arcade", p1: p1, p2: ladder[idx], diff: LADDER_DIFF[idx], ladder: ladder, idx: idx }); }
@@ -845,6 +935,7 @@ footer { color:var(--muted); font-size:0.8rem; }
       if (sel.step === "p1") {
         sel.p1 = d;
         if (sel.mode === "arcade") { startArcade(d, buildLadder(d), 0); }
+        else if (sel.mode === "daily") { startDaily(d); }
         else { sel.step = "p2"; pickScreen(); }
       } else {
         sel.p2 = d;
@@ -1006,7 +1097,12 @@ footer { color:var(--muted); font-size:0.8rem; }
   if (jget("cc-tip", null) && !jget("cc-tip", null).amt) lsSet("cc-tip", "");
 
   // ---------- go ----------
-  renderTip(); renderStats(); renderArenas(); renderSound(); makeDemo();
+  renderTip(); renderStats(); renderArenas(); renderSound(); makeDemo(); renderDaily();
+  setInterval(renderDaily, 30000);
+  $("d-play").addEventListener("click", function () {
+    initAudio(); m = null; phase = "menu"; paused = false; projs.length = 0;
+    sel = { mode: "daily", step: "p1", p1: null, p2: null }; pickScreen();
+  });
   menuScreen();
   requestAnimationFrame(frame);
   if (/[?&]selftest/.test(location.search)) {
