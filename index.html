@@ -1,0 +1,998 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Crypto Clash: Chain Strike</title>
+<meta name="description" content="A free browser fighting game. Land hits to build a chain, fill the meter and fire a Chain Strike. Arcade ladder, quick fights and 2 player. No fees.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg:#0a0e1a; --card:#121a2e; --ink:#e8eefc; --muted:#93a3c0; --line:#25324f;
+  --accent:#ffb020; --accent-ink:#1a1103; --field:#0d1426;
+  --p1:#38bdf8; --p2:#fb7185; --good:#4ade80; --bad:#ff6b6b; --gold:#fbbf24;
+  --scrim:rgba(4,8,18,0.84); color-scheme:dark;
+}
+* { box-sizing:border-box; }
+html { background:var(--bg); }
+body {
+  margin:0; background:var(--bg); color:var(--ink);
+  font:16px/1.5 "Sora","Helvetica Neue",Arial,sans-serif; -webkit-text-size-adjust:100%;
+  padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-top:max(16px, env(safe-area-inset-top, 0px)); padding-bottom:40px;
+}
+body.modal-open { overflow:hidden; }
+[hidden] { display:none !important; }
+.layout { max-width:900px; margin-inline:auto; display:flex; flex-direction:column; gap:20px; }
+.mono { font-family:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace; font-variant-numeric:tabular-nums; }
+
+button, .btn {
+  font:600 0.9rem "Sora","Helvetica Neue",Arial,sans-serif; cursor:pointer; text-decoration:none;
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  padding:8px 14px; min-height:44px; border-radius:8px; border:1px solid var(--line);
+  background:var(--card); color:var(--ink); touch-action:manipulation; line-height:1.2;
+}
+button:disabled { opacity:0.45; cursor:not-allowed; }
+button.primary, .btn.primary { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); font-weight:800; }
+button[aria-pressed="true"] { border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
+button:focus-visible, .btn:focus-visible, summary:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+
+.topbar { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.topbar h1 { margin:0; font-weight:800; font-size:1.25rem; line-height:1.1; letter-spacing:-0.01em; }
+.topbar h1 small { display:block; font:600 0.72rem "JetBrains Mono",monospace; color:var(--accent); text-transform:uppercase; letter-spacing:0.14em; margin-top:2px; }
+.topbar .sup { color:var(--gold); }
+.topbar .btns { display:flex; gap:8px; }
+.topbar button { min-height:40px; padding:6px 12px; }
+
+.board { position:relative; width:100%; aspect-ratio:16/9; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--field); }
+canvas { display:block; width:100%; height:100%; touch-action:none; }
+
+.touch { display:none; justify-content:space-between; gap:10px; user-select:none; -webkit-user-select:none; }
+@media (hover:none) and (pointer:coarse) { .touch { display:flex; } }
+.touch .pad { display:grid; gap:8px; }
+.touch .move { grid-template-columns:repeat(3,64px); }
+.touch .act { grid-template-columns:repeat(2,84px); }
+.touch button { min-height:56px; padding:4px; touch-action:none; -webkit-touch-callout:none; font-size:0.82rem; }
+.touch button.on { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+.touch .wide { grid-column:span 2; }
+
+.modal { position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center; padding:16px; background:var(--scrim); overflow:auto; }
+.sheet { width:100%; max-width:560px; max-height:92vh; overflow:auto; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; display:flex; flex-direction:column; gap:12px; }
+.sheet h2 { margin:0; font-weight:800; font-size:1.4rem; line-height:1.15; text-wrap:balance; }
+.sheet h2 .sub { display:block; font:600 0.74rem "JetBrains Mono",monospace; color:var(--accent); text-transform:uppercase; letter-spacing:0.14em; margin-top:4px; }
+.sheet p { margin:0; color:var(--muted); font-size:0.9rem; }
+.sheet .small { font-size:0.8rem; }
+.sheet .stack { display:flex; flex-direction:column; gap:8px; }
+.sheet .row2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.sheet .status { min-height:1.2em; font-size:0.8rem; color:var(--accent); }
+.sheet .big { font-family:"JetBrains Mono",monospace; font-size:2.2rem; font-weight:600; line-height:1; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:8px; }
+.fc { flex-direction:column; align-items:flex-start; justify-content:flex-start; gap:4px; text-align:left; padding:10px 12px; }
+.fc b { font-size:0.95rem; }
+.fc small { color:var(--muted); font-weight:500; font-size:0.74rem; line-height:1.3; }
+.fc .sw { width:100%; height:6px; border-radius:3px; }
+.fc .bars { display:grid; grid-template-columns:auto 1fr; gap:2px 8px; align-items:center; width:100%; font:600 0.64rem "JetBrains Mono",monospace; color:var(--muted); margin-top:4px; }
+.bar { display:block; height:5px; background:var(--field); border-radius:3px; overflow:hidden; }
+.bar i { display:block; height:100%; background:var(--accent); }
+
+.card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; display:flex; flex-direction:column; gap:14px; }
+.card h2 { font-weight:800; font-size:1.25rem; margin:0; line-height:1.15; }
+.card p { margin:0; color:var(--muted); font-size:0.92rem; }
+.stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px; }
+.stat { background:var(--field); border:1px solid var(--line); border-radius:8px; padding:8px 10px; display:flex; flex-direction:column; }
+.stat small { color:var(--muted); font-size:0.72rem; }
+.stat b { font-family:"JetBrains Mono",monospace; font-size:1.3rem; font-weight:600; }
+.arenas { display:flex; flex-wrap:wrap; gap:8px; }
+.arenas button { flex-direction:column; align-items:flex-start; gap:0; padding:8px 12px; }
+.arenas small { color:var(--muted); font-weight:500; font-size:0.7rem; }
+.amounts { display:flex; flex-wrap:wrap; gap:8px; }
+.amounts button { font-family:"JetBrains Mono",monospace; font-size:0.85rem; }
+.pay { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
+.qr { background:#fff; padding:10px; border-radius:8px; line-height:0; flex:none; }
+.qr img, .qr canvas { max-width:100%; height:auto; }
+.addr-box { flex:1 1 220px; min-width:0; display:flex; flex-direction:column; gap:10px; }
+.addr { font-family:"JetBrains Mono",monospace; font-size:0.78rem; word-break:break-all; user-select:all; background:var(--field); border:1px solid var(--line); border-radius:8px; padding:10px; }
+.row { display:flex; flex-wrap:wrap; gap:8px; }
+.hint { font-size:0.82rem; color:var(--muted); margin:0; }
+.status { font-size:0.85rem; min-height:1.3em; color:var(--accent); }
+.rules { border:1px solid var(--line); border-radius:12px; background:var(--card); }
+.rules summary { cursor:pointer; padding:14px 16px; font-weight:800; }
+.rules-body { padding:0 16px 16px; display:flex; flex-direction:column; gap:10px; font-size:0.88rem; color:var(--muted); }
+.rules-body h3 { margin:6px 0 0; font:600 0.74rem "JetBrains Mono",monospace; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink); }
+.rules-body p { margin:0; }
+.rules-body kbd { font:600 0.78rem "JetBrains Mono",monospace; background:var(--field); border:1px solid var(--line); border-radius:4px; padding:1px 6px; color:var(--ink); }
+footer { color:var(--muted); font-size:0.8rem; }
+@media (prefers-reduced-motion:reduce) { * { scroll-behavior:auto !important; } }
+</style>
+</head>
+<body>
+<noscript><p style="padding:16px">Crypto Clash: Chain Strike needs JavaScript to run.</p></noscript>
+<div class="layout">
+  <main class="stage">
+    <div class="topbar">
+      <h1>Crypto Clash <span class="sup" id="supmark" hidden title="Supporter">&#10022;</span><small>Chain Strike</small></h1>
+      <div class="btns">
+        <button type="button" id="btn-snd" aria-pressed="true" aria-label="Sound">Sound</button>
+        <button type="button" id="btn-menu">Menu</button>
+      </div>
+    </div>
+    <div class="board" id="board">
+      <canvas id="cv" aria-label="Fighting game arena. Keyboard: A and D move, W jumps, S blocks, J punches, K kicks, L fires the Chain Strike. Arrow keys with Z, X and C also work."></canvas>
+    </div>
+    <div class="touch" id="touch" aria-label="Touch controls">
+      <div class="pad move">
+        <button type="button" data-k="L" aria-label="Move left">&#9664;</button>
+        <button type="button" data-k="U" aria-label="Jump">&#9650;</button>
+        <button type="button" data-k="R" aria-label="Move right">&#9654;</button>
+        <button type="button" data-k="D" class="wide" aria-label="Block">Block</button>
+      </div>
+      <div class="pad act">
+        <button type="button" data-k="P">Punch</button>
+        <button type="button" data-k="K">Kick</button>
+        <button type="button" data-k="S" class="wide">Chain Strike</button>
+      </div>
+    </div>
+  </main>
+
+  <details class="rules" id="rules">
+    <summary>How to play</summary>
+    <div class="rules-body">
+      <h3>Goal</h3>
+      <p>Win two rounds. A round ends when a fighter's health hits zero or the 60 second timer runs out, in which case the fighter with more health wins.</p>
+      <h3>Controls</h3>
+      <p><b>One player:</b> <kbd>A</kbd> <kbd>D</kbd> move, <kbd>W</kbd> jump, <kbd>S</kbd> block, <kbd>J</kbd> punch, <kbd>K</kbd> kick, <kbd>L</kbd> Chain Strike. Arrow keys with <kbd>Z</kbd> <kbd>X</kbd> <kbd>C</kbd> work too. Walking backwards while an enemy attacks also blocks. <kbd>Esc</kbd> pauses.</p>
+      <p><b>Two players:</b> Player 1 uses <kbd>A</kbd> <kbd>D</kbd> <kbd>W</kbd> <kbd>S</kbd> with <kbd>F</kbd> punch, <kbd>G</kbd> kick, <kbd>H</kbd> Chain Strike. Player 2 uses the arrow keys with <kbd>,</kbd> punch, <kbd>.</kbd> kick, <kbd>/</kbd> Chain Strike.</p>
+      <p><b>Touch:</b> on a phone or tablet, on-screen buttons appear under the arena.</p>
+      <h3>Chains</h3>
+      <p>Every hit you land within a short window adds a link to your chain. Each link adds 12% damage, up to 6 links. Getting hit breaks your chain. Punch into kick into punch is the classic route, but long strings of the same move get easier to escape.</p>
+      <h3>Chain Strike</h3>
+      <p>Hits fill your meter. At 100% you can fire a Chain Strike block across the arena. It hits hard and stuns for a long time. Blocking it still costs a little health, and jumping high enough clears it.</p>
+      <h3>Blocking and jumping</h3>
+      <p>Blocking cuts damage by 85% and fills a little meter, but you cannot block in the air. Kicks are low, so a good jump avoids them.</p>
+      <h3>Modes</h3>
+      <p><b>Arcade ladder</b> sends four opponents at you with rising difficulty, ending with the Genesis boss. <b>Quick fight</b> lets you pick your opponent and difficulty. <b>2 players</b> is local versus on one keyboard.</p>
+      <h3>Supporters</h3>
+      <p>A tip of 0.01 XNO or more unlocks the Genesis fighter and the Gold Vault arena. Tips are optional and the whole game is free.</p>
+    </div>
+  </details>
+
+  <section class="card" id="stats-card" aria-label="Your record">
+    <h2>Your record</h2>
+    <div class="stats">
+      <div class="stat"><small>Fights won</small><b id="st-won">0</b></div>
+      <div class="stat"><small>Fights lost</small><b id="st-lost">0</b></div>
+      <div class="stat"><small>Win streak</small><b id="st-streak">0</b></div>
+      <div class="stat"><small>Best streak</small><b id="st-bstreak">0</b></div>
+      <div class="stat"><small>Best chain</small><b id="st-chain">0</b></div>
+      <div class="stat"><small>Ladder best</small><b id="st-ladder">0/4</b></div>
+      <div class="stat"><small>Ladders cleared</small><b id="st-clears">0</b></div>
+    </div>
+  </section>
+
+  <section class="card" aria-label="Arenas">
+    <h2>Arenas</h2>
+    <div class="arenas" id="arenas" role="group" aria-label="Arena"></div>
+    <p id="arena-note"></p>
+  </section>
+
+  <aside class="card" id="tip" aria-label="Tip the author">
+    <h2>Enjoyed it? Send some XNO.</h2>
+    <p>Tips are optional and go straight to the creator's Nano wallet. Transfers settle in seconds with no fee. A tip of 0.01 XNO or more unlocks the Genesis fighter and the Gold Vault arena.</p>
+    <div class="amounts" role="group" aria-label="Amount">
+      <button type="button" data-amt="0.01" aria-pressed="true">0.01 XNO</button>
+      <button type="button" data-amt="0.05" aria-pressed="false">0.05 XNO</button>
+      <button type="button" data-amt="0.1" aria-pressed="false">0.1 XNO</button>
+      <button type="button" data-amt="" aria-pressed="false">Any amount</button>
+    </div>
+    <div class="pay">
+      <div class="qr" id="qr"></div>
+      <div class="addr-box">
+        <a class="btn primary" id="openw" href="#">Open in wallet</a>
+        <div class="addr" id="addr"></div>
+        <div class="row">
+          <button type="button" id="copy">Copy address</button>
+          <button type="button" id="check">I've sent it, check</button>
+        </div>
+        <div class="status" id="tstatus" role="status"></div>
+        <p class="hint" id="thint"></p>
+      </div>
+    </div>
+  </aside>
+
+  <footer>Only send XNO to the address shown above. Transfers on the Nano network cannot be reversed.</footer>
+</div>
+
+<div class="modal" id="ov" role="dialog" aria-modal="true" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = function (id) { return document.getElementById(id); };
+  const NANO_ADDRESS = "nano_3a7e3irpbpxbh1n7dk9u3cm9tnd97q1unjxn67ni9gijoxfmzguitx1xgc9u";
+  // Public Nano node RPC endpoints, used only to check whether a tip arrived. Swap in your own proxy if these block browsers.
+  const RPCS = ["https://rpc.nano.to", "https://node.somenano.com/proxy"];
+  function lsGet(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} }
+  function jget(k, d) { try { const v = JSON.parse(lsGet(k, "")); return v === null || v === undefined ? d : v; } catch (e) { return d; } }
+
+  // ---------- constants ----------
+  const W = 800, H = 450, GROUND = 372, GRAV = 0.62;
+  const cv = $("cv"), ctx = cv.getContext("2d");
+  cv.width = W * 2; cv.height = H * 2;
+
+  const ROSTER = [
+    { id: "miner", name: "Hash Miner", color: "#f59e0b", accent: "#fde68a", hp: 100, speed: 3.0, power: 1.0, jump: 12.5, reach: 1.0, fat: 1.0, blurb: "Balanced. Hits like a block reward." },
+    { id: "validator", name: "Validator", color: "#38bdf8", accent: "#bae6fd", hp: 95, speed: 3.6, power: 0.92, jump: 13, reach: 1.0, fat: 0.92, blurb: "Fast and light. Confirms combos quickly." },
+    { id: "whale", name: "Whale", color: "#a78bfa", accent: "#ddd6fe", hp: 125, speed: 2.4, power: 1.25, jump: 11.5, reach: 1.0, fat: 1.3, blurb: "Slow and huge. Every hit moves the market." },
+    { id: "relay", name: "Relay", color: "#34d399", accent: "#a7f3d0", hp: 105, speed: 3.2, power: 0.95, jump: 12.5, reach: 1.2, fat: 1.0, blurb: "Long reach. Keeps you at the end of the line." },
+    { id: "genesis", name: "Genesis", color: "#fbbf24", accent: "#fff7d6", hp: 112, speed: 3.4, power: 1.1, jump: 13, reach: 1.1, fat: 1.05, locked: true, blurb: "Supporter fighter. Gold block armour." }
+  ];
+  const ARENAS = [
+    { id: "genesis", name: "Genesis Block", sky: ["#0b1530", "#14264d"], grid: "#2a4a86", block: "#18305c", glow: "#4ea1ff", floor: "#0d1a35" },
+    { id: "mempool", name: "Mempool", sky: ["#1a0b30", "#2d1457"], grid: "#6d3fc4", block: "#2a1650", glow: "#b184ff", floor: "#170a2e" },
+    { id: "bull", name: "Bull Run", sky: ["#062016", "#0d3a28"], grid: "#1f9b66", block: "#0e3a2a", glow: "#4ade80", floor: "#06180f" },
+    { id: "bear", name: "Bear Pit", sky: ["#2a0a0e", "#4a1118"], grid: "#b4343f", block: "#3a0f15", glow: "#ff6b6b", floor: "#1c0508" },
+    { id: "gold", name: "Gold Vault", sky: ["#2a2008", "#4d3a0c"], grid: "#d9a514", block: "#3d2f0a", glow: "#ffd166", floor: "#1e1604", locked: true }
+  ];
+  const ATK = {
+    punch: { startup: 4, active: 4, rec: 9, dmg: 6, range: 62, stun: 20, kb: 3.5, top: 100, bot: 40, lunge: 1.5 },
+    kick: { startup: 8, active: 5, rec: 14, dmg: 10, range: 80, stun: 26, kb: 6, top: 62, bot: 0, lunge: 2.2 },
+    special: { startup: 16, active: 1, rec: 22, proj: true, dmg: 16, stun: 30, kb: 8 }
+  };
+  const DIFF = {
+    easy: { block: 0.2, aggr: 0.55, spec: 0.3, react: 14, tick: [16, 34], combo: 0.06 },
+    normal: { block: 0.5, aggr: 0.85, spec: 0.6, react: 8, tick: [10, 24], combo: 0.18 },
+    hard: { block: 0.75, aggr: 1.15, spec: 0.9, react: 4, tick: [6, 15], combo: 0.35 }
+  };
+  const CHAIN_WINDOW = 55;
+
+  // ---------- persistent state ----------
+  let supporter = lsGet("cc-sup", "0") === "1";
+  let arenaId = lsGet("cc-arena", "genesis");
+  let muted = lsGet("cc-mute", "0") === "1";
+  const stats = Object.assign({ played: 0, won: 0, lost: 0, streak: 0, bestStreak: 0, chain: 0, ladderBest: 0, ladderClears: 0 }, jget("cc-stats", {}));
+  function saveStats() { lsSet("cc-stats", JSON.stringify(stats)); }
+  function arenaById(id) { return ARENAS.find(function (a) { return a.id === id; }) || ARENAS[0]; }
+  function arena() { const a = arenaById(arenaId); return (a.locked && !supporter) ? ARENAS[0] : a; }
+
+  // ---------- audio ----------
+  let ac = null;
+  function initAudio() { try { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === "suspended") ac.resume(); } catch (e) {} }
+  function beep(freq, dur, type, vol, slide) {
+    if (muted || !ac) return;
+    try {
+      const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
+      o.type = type || "square"; o.frequency.setValueAtTime(freq, t);
+      if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t + dur);
+      g.gain.setValueAtTime(vol || 0.05, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + dur);
+    } catch (e) {}
+  }
+
+  // ---------- fighters ----------
+  function mk(def, side, human) {
+    return { def: def, side: side, human: human, x: 0, y: GROUND, vx: 0, vy: 0, face: 1, hp: def.hp, max: def.hp, ghost: def.hp,
+      state: "idle", t: 0, koT: 0, atk: null, hitDone: false, stun: 0, meter: 0, chain: 0, chainT: 0, best: 0, buf: null,
+      blocking: false, win: false, flash: 0, pulse: 0, atkId: 0, anim: 0, diff: "normal",
+      ai: { t: 0, move: 0, jump: false, blockT: 0, willBlock: false, reactFor: -1, reactWait: 0, projSeen: -1 } };
+  }
+  function resetFighter(f) {
+    f.x = f.side === 0 ? 240 : 560; f.y = GROUND; f.vx = 0; f.vy = 0; f.face = f.side === 0 ? 1 : -1;
+    f.hp = f.max; f.ghost = f.max; f.state = "idle"; f.t = 0; f.koT = 0; f.atk = null; f.stun = 0; f.meter = 0;
+    f.chain = 0; f.chainT = 0; f.buf = null; f.blocking = false; f.win = false; f.flash = 0; f.pulse = 0;
+  }
+
+  // ---------- game state ----------
+  let m = null, demo = null, phase = "menu", phaseT = 0, paused = false, hitstop = 0, shake = 0, timer = 0, roundMsg = "", tick = 0;
+  let projs = [], parts = [], texts = [], pid = 0;
+  const NO = { l: false, r: false, u: false, d: false };
+
+  function makeDemo() {
+    demo = [mk(ROSTER[0], 0, false), mk(ROSTER[2], 1, false)];
+    resetFighter(demo[0]); resetFighter(demo[1]);
+  }
+
+  // ---------- input ----------
+  const down = new Set(); let pressQ = [];
+  function isDown(codes) { for (let i = 0; i < codes.length; i++) if (down.has(codes[i])) return true; return false; }
+  function keymap(side) {
+    if (m && m.mode === "2p") {
+      return side === 0
+        ? { l: ["KeyA", "T_L"], r: ["KeyD", "T_R"], u: ["KeyW", "T_U"], d: ["KeyS", "T_D"], punch: ["KeyF", "T_P"], kick: ["KeyG", "T_K"], special: ["KeyH", "T_S"] }
+        : { l: ["ArrowLeft"], r: ["ArrowRight"], u: ["ArrowUp"], d: ["ArrowDown"], punch: ["Comma"], kick: ["Period"], special: ["Slash"] };
+    }
+    return { l: ["KeyA", "ArrowLeft", "T_L"], r: ["KeyD", "ArrowRight", "T_R"], u: ["KeyW", "ArrowUp", "T_U"], d: ["KeyS", "ArrowDown", "T_D"],
+      punch: ["KeyJ", "KeyZ", "T_P"], kick: ["KeyK", "KeyX", "T_K"], special: ["KeyL", "KeyC", "T_S"] };
+  }
+  function readInput(side) {
+    const km = keymap(side), held = { l: isDown(km.l), r: isDown(km.r), u: isDown(km.u), d: isDown(km.d) }, press = [];
+    for (let i = 0; i < pressQ.length; i++) {
+      const c = pressQ[i];
+      if (km.punch.indexOf(c) >= 0) press.push("punch");
+      else if (km.kick.indexOf(c) >= 0) press.push("kick");
+      else if (km.special.indexOf(c) >= 0) press.push("special");
+    }
+    return { held: held, press: press };
+  }
+  const GAMEKEYS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", "Slash", "Comma", "Period"];
+  window.addEventListener("keydown", function (e) {
+    if (m && $("ov").hidden && GAMEKEYS.indexOf(e.code) >= 0) e.preventDefault();
+    initAudio();
+    if (e.repeat) return;
+    if ((e.code === "Escape" || e.code === "KeyP") && m && phase !== "matchEnd") { togglePause(); return; }
+    down.add(e.code); pressQ.push(e.code); if (pressQ.length > 24) pressQ.shift();
+  });
+  window.addEventListener("keyup", function (e) { down.delete(e.code); });
+  window.addEventListener("blur", function () { down.clear(); });
+  document.querySelectorAll("#touch button").forEach(function (b) {
+    const k = "T_" + b.getAttribute("data-k"), isAtk = "PKS".indexOf(b.getAttribute("data-k")) >= 0;
+    function dn(e) { e.preventDefault(); initAudio(); down.add(k); if (isAtk) { pressQ.push(k); if (pressQ.length > 24) pressQ.shift(); } b.classList.add("on"); }
+    function up() { down.delete(k); b.classList.remove("on"); }
+    b.addEventListener("pointerdown", dn); b.addEventListener("pointerup", up); b.addEventListener("pointercancel", up); b.addEventListener("pointerleave", up);
+    b.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+  });
+
+  // ---------- fight logic ----------
+  function ri(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
+  function phys(f, fr) {
+    f.x += f.vx;
+    if (f.y < GROUND || f.vy < 0) {
+      f.vy += GRAV; f.y += f.vy; f.vx *= 0.995;
+      if (f.y >= GROUND) { f.y = GROUND; f.vy = 0; if (f.state === "jump") f.state = "idle"; dust(f.x, GROUND, 4); }
+    } else { f.vx *= fr; }
+    f.x = Math.max(34, Math.min(W - 34, f.x));
+  }
+  function startAtk(f, type) {
+    const a = ATK[type];
+    if (type === "special") { if (f.meter < 100 || f.y < GROUND) return false; f.meter -= 100; beep(300, 0.25, "sawtooth", 0.05, 500); }
+    else beep(type === "punch" ? 620 : 420, 0.06, "triangle", 0.03, -250);
+    f.atk = Object.assign({ type: type }, a); f.t = 0; f.state = type; f.hitDone = false; f.atkId++;
+    return true;
+  }
+  function ext(f) {
+    if (!f.atk) return 0; const a = f.atk;
+    if (f.t < a.startup) return (f.t / a.startup) * 0.6;
+    if (f.t < a.startup + a.active) return 1;
+    return Math.max(0, 1 - (f.t - a.startup - a.active) / a.rec);
+  }
+  function step(f, o, inp, press) {
+    f.anim++; if (f.flash > 0) f.flash--; if (f.pulse > 0) f.pulse = Math.max(0, f.pulse - 0.05);
+    if (f.chainT > 0) { f.chainT--; if (f.chainT === 0) f.chain = 0; }
+    f.ghost = f.ghost > f.hp ? Math.max(f.hp, f.ghost - 0.25) : f.hp;
+    let air = f.y < GROUND;
+    if (f.state === "ko") { f.koT++; phys(f, 0.9); return; }
+    if (!f.atk && f.stun <= 0 && !air && !f.win) f.face = o.x >= f.x ? 1 : -1;
+    for (let i = 0; i < press.length; i++) f.buf = { a: press[i], t: 10 };
+    if (f.buf) { f.buf.t--; if (f.buf.t <= 0) f.buf = null; }
+    if (f.stun > 0) {
+      f.stun--; f.blocking = false;
+      f.state = f.stun > 0 ? "hurt" : (f.y < GROUND ? "jump" : "idle");
+      phys(f, 0.82); return;
+    }
+    if (f.atk) {
+      const a = f.atk; f.t++; f.blocking = false;
+      if (a.proj) { if (f.t === a.startup) spawnProj(f); }
+      else {
+        if (f.t === a.startup) f.vx += f.face * a.lunge;
+        if (f.t >= a.startup && f.t < a.startup + a.active && !f.hitDone) tryHit(f, o, a);
+      }
+      if (f.t >= a.startup + a.active + a.rec) { f.atk = null; f.state = f.y < GROUND ? "jump" : "idle"; }
+      phys(f, 0.8); return;
+    }
+    if (f.win) { f.state = "win"; f.vx = 0; f.blocking = false; phys(f, 0.8); return; }
+    const dir = (inp.r ? 1 : 0) - (inp.l ? 1 : 0);
+    const away = dir !== 0 && dir === -f.face;
+    const threat = (o.atk && !o.atk.proj && Math.abs(o.x - f.x) < 130) || projs.some(function (p) { return p.owner !== f && Math.abs(p.x - f.x) < 170; });
+    f.blocking = !air && (inp.d || (away && threat));
+    if (f.blocking) { f.vx *= 0.5; f.state = "block"; }
+    else {
+      const sp = f.def.speed;
+      if (!air) { f.vx = dir * sp; f.state = dir ? "walk" : "idle"; }
+      else { f.vx = Math.max(-sp * 1.1, Math.min(sp * 1.1, f.vx + dir * 0.14)); f.state = "jump"; }
+    }
+    if (inp.u && !air && !f.blocking) { f.vy = -f.def.jump; f.vx = dir * f.def.speed; f.state = "jump"; beep(260, 0.08, "triangle", 0.03, 200); }
+    if (f.buf) {
+      const b = f.buf.a; f.buf = null;
+      startAtk(f, b);
+    }
+    phys(f, 1);
+  }
+  function overlap(ax0, ay0, ax1, ay1, bx0, by0, bx1, by1) { return ax0 < bx1 && ax1 > bx0 && ay0 < by1 && ay1 > by0; }
+  function tryHit(f, o, a) {
+    if (o.state === "ko") return;
+    const R = a.range * f.def.reach, x0 = f.face > 0 ? f.x + 8 : f.x - 8 - R, x1 = x0 + R;
+    const y0 = f.y - a.top, y1 = f.y - a.bot;
+    if (overlap(x0, y0, x1, y1, o.x - 22, o.y - 112, o.x + 22, o.y)) { f.hitDone = true; applyHit(f, o, a); }
+  }
+  function applyHit(att, def, a) {
+    const blocked = def.blocking && def.y >= GROUND && def.state !== "hurt";
+    const cx = def.x - att.face * 14, cy = def.y - (a.type === "kick" ? 34 : 78);
+    if (blocked) {
+      def.hp = Math.max(1, def.hp - a.dmg * att.def.power * 0.15);
+      def.vx = att.face * a.kb * 0.7; def.meter = Math.min(100, def.meter + 3); att.meter = Math.min(100, att.meter + 2);
+      sparks(cx, cy, "#9fd0ff", 6, 3); addText(cx, cy - 20, "BLOCK", "#9fd0ff");
+      beep(130, 0.07, "sawtooth", 0.05, -40); hitstop = Math.max(hitstop, 3); shake = Math.max(shake, 2);
+      return;
+    }
+    att.chain++; att.chainT = CHAIN_WINDOW; att.pulse = 1; att.best = Math.max(att.best, att.chain);
+    const mult = 1 + 0.12 * Math.min(att.chain - 1, 6);
+    def.hp = Math.max(0, def.hp - a.dmg * att.def.power * mult);
+    def.stun = Math.max(10, a.stun - 3 * Math.max(0, att.chain - 2));
+    def.state = "hurt"; def.atk = null; def.buf = null; def.blocking = false;
+    def.vx = att.face * a.kb; if (a.type !== "punch" && def.y >= GROUND) def.vy = -3.5;
+    def.chain = 0; def.chainT = 0; def.flash = 6;
+    att.meter = Math.min(100, att.meter + 10); def.meter = Math.min(100, def.meter + 5);
+    sparks(cx, cy, att.def.accent, 10 + att.chain * 2, 5); sparks(cx, cy, "#ffffff", 4, 4);
+    if (att.chain > 1) addText(cx, cy - 26, "CHAIN x" + att.chain, att.def.accent);
+    beep(190 + att.chain * 22, 0.09, "square", 0.06, -100);
+    hitstop = Math.max(hitstop, a.proj ? 8 : 5); shake = Math.max(shake, a.proj ? 7 : 3 + Math.min(att.chain, 4));
+    if (def.hp <= 0) { def.state = "ko"; def.koT = 0; def.atk = null; def.vx = att.face * 7; def.vy = -8; beep(90, 0.5, "sawtooth", 0.08, -50); }
+  }
+  function spawnProj(f) {
+    projs.push({ id: ++pid, x: f.x + f.face * 40, y: f.y - 62, vx: f.face * 8.5, owner: f, life: 90, spin: 0, data: ATK.special });
+  }
+  function updateProjs() {
+    for (let i = projs.length - 1; i >= 0; i--) {
+      const p = projs[i], o = p.owner === m.p1 ? m.p2 : m.p1;
+      p.x += p.vx; p.life--; p.spin += 0.2;
+      if (tick % 2 === 0) parts.push({ x: p.x, y: p.y + (Math.random() - 0.5) * 16, vx: -p.vx * 0.1, vy: 0, g: 0, life: 14, c: p.owner.def.accent, s: 4 });
+      let dead = p.life <= 0 || p.x < -30 || p.x > W + 30;
+      if (!dead && o.state !== "ko" && overlap(p.x - 14, p.y - 14, p.x + 14, p.y + 14, o.x - 22, o.y - 112, o.x + 22, o.y)) {
+        applyHit(p.owner, o, Object.assign({ type: "special" }, p.data)); dead = true;
+      }
+      if (dead) projs.splice(i, 1);
+    }
+  }
+  function separate() {
+    const a = m.p1, b = m.p2, dx = b.x - a.x, min = 38;
+    if (Math.abs(dx) < min && Math.abs(a.y - b.y) < 70) {
+      const push = (min - Math.abs(dx)) / 2, s = dx >= 0 ? 1 : -1;
+      a.x -= s * push; b.x += s * push;
+      a.x = Math.max(34, Math.min(W - 34, a.x)); b.x = Math.max(34, Math.min(W - 34, b.x));
+    }
+  }
+
+  // ---------- CPU opponent ----------
+  function aiInput(f, o) {
+    const d = DIFF[f.diff] || DIFF.normal, A = f.ai, held = { l: false, r: false, u: false, d: false }, press = [];
+    const dx = o.x - f.x, dist = Math.abs(dx), dir = dx >= 0 ? 1 : -1, air = f.y < GROUND;
+    let threat = false;
+    if (o.atk && !o.atk.proj && dist < o.atk.range * o.def.reach + 50) {
+      if (A.reactFor !== o.atkId) { A.reactFor = o.atkId; A.willBlock = Math.random() < d.block; A.reactWait = ri(0, d.react); }
+      if (A.willBlock && o.t >= A.reactWait) threat = true;
+    }
+    for (let i = 0; i < projs.length; i++) {
+      const p = projs[i];
+      if (p.owner === f) continue;
+      const toward = (p.vx > 0 && p.x < f.x) || (p.vx < 0 && p.x > f.x);
+      if (toward && Math.abs(p.x - f.x) < 200 && A.projSeen !== p.id) {
+        A.projSeen = p.id;
+        if (Math.random() < d.block) A.blockT = 28; else if (Math.random() < 0.5) A.jump = true;
+      }
+    }
+    if (A.blockT > 0) { A.blockT--; threat = true; }
+    A.t--;
+    if (!threat && A.t <= 0) {
+      A.t = ri(d.tick[0], d.tick[1]); A.move = 0;
+      const r = Math.random();
+      if (dist > 220) {
+        A.move = dir;
+        if (f.meter >= 100 && r < 0.5 * d.spec) press.push("special"); else if (r > 0.93) A.jump = true;
+      } else if (dist > 110) {
+        if (f.meter >= 100 && r < 0.4 * d.spec && !air) press.push("special");
+        else if (r < 0.55) A.move = dir; else if (r < 0.7) press.push("kick"); else if (r < 0.78) A.jump = true;
+      } else {
+        if (r < 0.3 * d.aggr) press.push("punch"); else if (r < 0.5 * d.aggr) press.push("kick");
+        else if (r < 0.62) A.move = -dir; else if (r < 0.68) A.jump = true; else if (r < 0.78) A.blockT = 16;
+      }
+    }
+    if (!threat && !f.atk && o.stun > 6 && dist < 95 && Math.random() < d.combo) press.push(Math.random() < 0.6 ? "punch" : "kick");
+    if (threat) held.d = true;
+    else if (A.move > 0) held.r = true; else if (A.move < 0) held.l = true;
+    if (A.jump) { held.u = true; A.jump = false; }
+    return { held: held, press: press };
+  }
+
+  // ---------- rounds and matches ----------
+  function startRound() {
+    resetFighter(m.p1); resetFighter(m.p2); projs.length = 0; timer = 60 * 60; phase = "intro"; phaseT = 0; roundMsg = "";
+  }
+  function startMatch(c) {
+    closeModal(); paused = false;
+    const f1 = mk(c.p1, 0, true), f2 = mk(c.p2, 1, c.mode === "2p");
+    f2.diff = c.diff || "normal";
+    m = { mode: c.mode, p1: f1, p2: f2, round: 1, wins: [0, 0], diff: c.diff, ladder: c.ladder || null, idx: c.idx || 0, cfg: c };
+    pressQ.length = 0; startRound();
+  }
+  function endRound() {
+    const a = m.p1, b = m.p2, ko = a.hp <= 0 || b.hp <= 0;
+    let w;
+    if (a.hp <= 0 && b.hp > 0) w = 1; else if (b.hp <= 0 && a.hp > 0) w = 0; else w = (a.hp / a.max >= b.hp / b.max) ? 0 : 1;
+    (w === 0 ? a : b).win = true; (w === 0 ? a : b).buf = null; (w === 0 ? b : a).buf = null;
+    m.wins[w]++; roundMsg = ko ? "K.O." : "TIME UP"; phase = "roundEnd"; phaseT = 0; projs.length = 0;
+    if (ko) { hitstop = Math.max(hitstop, 10); shake = 10; }
+    beep(ko ? 70 : 200, 0.6, "sawtooth", 0.07, -40);
+  }
+  function afterRound() {
+    if (m.wins[0] >= 2 || m.wins[1] >= 2) matchEnd(); else { m.round++; startRound(); }
+  }
+  function matchEnd() {
+    phase = "matchEnd"; phaseT = 0;
+    const win = m.wins[0] >= 2;
+    if (m.mode !== "2p") {
+      stats.played++;
+      if (win) { stats.won++; stats.streak++; stats.bestStreak = Math.max(stats.bestStreak, stats.streak); } else { stats.lost++; stats.streak = 0; }
+      stats.chain = Math.max(stats.chain, m.p1.best);
+      if (m.mode === "arcade") {
+        const beaten = win ? m.idx + 1 : m.idx;
+        stats.ladderBest = Math.max(stats.ladderBest, beaten);
+        if (win && m.idx === m.ladder.length - 1) stats.ladderClears++;
+      }
+      saveStats(); renderStats();
+    }
+    showResult(win);
+  }
+
+  // ---------- update loop ----------
+  function updateFX() {
+    for (let i = 0; i < parts.length; i++) { const p = parts[i]; p.x += p.vx; p.y += p.vy; p.vy += p.g; p.life--; }
+    parts = parts.filter(function (p) { return p.life > 0; });
+    for (let i = 0; i < texts.length; i++) { texts[i].y -= 0.7; texts[i].life--; }
+    texts = texts.filter(function (t) { return t.life > 0; });
+    shake *= 0.85; if (shake < 0.3) shake = 0;
+  }
+  function sparks(x, y, c, n, pw) {
+    for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, s = (0.4 + Math.random()) * pw; parts.push({ x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1, g: 0.18, life: 16 + ri(0, 10), c: c, s: 3 + Math.random() * 3 }); }
+  }
+  function dust(x, y, n) { for (let i = 0; i < n; i++) parts.push({ x: x + (Math.random() - 0.5) * 24, y: y, vx: (Math.random() - 0.5) * 2, vy: -Math.random(), g: 0.02, life: 14, c: "rgba(200,210,230,0.5)", s: 4 }); }
+  function addText(x, y, s, c) { texts.push({ x: x, y: y, s: s, c: c, life: 45 }); }
+  function update() {
+    tick++;
+    if (!m) { if (!demo) makeDemo(); demo[0].anim++; demo[1].anim++; updateFX(); return; }
+    if (hitstop > 0) { hitstop--; updateFX(); return; }
+    if (phase === "intro") {
+      phaseT++; m.p1.anim++; m.p2.anim++; pressQ.length = 0;
+      if (phaseT === 60) beep(520, 0.25, "square", 0.06, 300);
+      if (phaseT >= 120) { phase = "fight"; phaseT = 0; }
+    } else if (phase === "fight") {
+      const i1 = readInput(0), i2 = m.mode === "2p" ? readInput(1) : aiInput(m.p2, m.p1);
+      pressQ.length = 0;
+      step(m.p1, m.p2, i1.held, i1.press); step(m.p2, m.p1, i2.held, i2.press);
+      updateProjs(); separate(); timer--;
+      if (m.p1.hp <= 0 || m.p2.hp <= 0 || timer <= 0) endRound();
+    } else if (phase === "roundEnd") {
+      phaseT++;
+      if (!(phaseT < 55 && (phaseT & 1))) {
+        step(m.p1, m.p2, NO, []); step(m.p2, m.p1, NO, []); separate();
+        if (phaseT >= 170) afterRound();
+      }
+    } else if (phase === "matchEnd") {
+      step(m.p1, m.p2, NO, []); step(m.p2, m.p1, NO, []); separate();
+    }
+    updateFX();
+  }
+
+  // ---------- drawing ----------
+  function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  function shade(hex, k) {
+    const n = parseInt(hex.slice(1), 16), r = n >> 16 & 255, g = n >> 8 & 255, b = n & 255;
+    const f = function (c) { return Math.max(0, Math.min(255, Math.round(k < 0 ? c * (1 + k) : c + (255 - c) * k))); };
+    return "rgb(" + f(r) + "," + f(g) + "," + f(b) + ")";
+  }
+  let seed = 7; function rnd() { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
+  const skyline = []; for (let i = 0; i < 18; i++) skyline.push({ x: i * 48 - 20, w: 30 + rnd() * 36, h: 60 + rnd() * 150, layer: rnd() > 0.5 ? 1 : 0 });
+  const hexes = []; for (let i = 0; i < 7; i++) hexes.push({ x: rnd() * W, y: 40 + rnd() * 200, r: 16 + rnd() * 26, sp: 0.1 + rnd() * 0.25, ph: rnd() * 6 });
+  function hexPath(x, y, r) { ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = Math.PI / 3 * i + Math.PI / 6; ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); } ctx.closePath(); }
+  function drawArena(a) {
+    const g = ctx.createLinearGradient(0, 0, 0, GROUND); g.addColorStop(0, a.sky[0]); g.addColorStop(1, a.sky[1]);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    const focus = m ? (m.p1.x + m.p2.x) / 2 : W / 2, off = (focus - W / 2) * 0.04;
+    ctx.globalAlpha = 0.5; ctx.strokeStyle = a.glow; ctx.lineWidth = 1.5;
+    for (let i = 0; i < hexes.length; i++) { const h = hexes[i]; hexPath(h.x - off * 0.5, h.y + Math.sin(tick * 0.01 * h.sp * 10 + h.ph) * 8, h.r); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+    for (let l = 0; l < 2; l++) {
+      ctx.fillStyle = l === 0 ? shade(a.block, -0.35) : a.block;
+      for (let i = 0; i < skyline.length; i++) { const s = skyline[i]; if (s.layer !== l) continue; const px = s.x - off * (l ? 1.6 : 0.8); ctx.fillRect(px, GROUND + 8 - s.h * (l ? 1 : 0.8), s.w, s.h * (l ? 1 : 0.8)); }
+    }
+    ctx.fillStyle = a.floor; ctx.fillRect(0, GROUND + 8, W, H - GROUND - 8);
+    ctx.strokeStyle = a.grid; ctx.lineWidth = 1; ctx.globalAlpha = 0.55;
+    for (let i = -10; i <= 10; i++) { ctx.beginPath(); ctx.moveTo(W / 2 + i * 22, GROUND + 8); ctx.lineTo(W / 2 + i * 110, H); ctx.stroke(); }
+    for (let j = 1; j < 5; j++) { const y = GROUND + 8 + j * j * 3.4; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    ctx.globalAlpha = 1; ctx.strokeStyle = a.glow; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(0, GROUND + 8); ctx.lineTo(W, GROUND + 8); ctx.stroke();
+  }
+  function drawEmblem(id, col) {
+    ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.fillStyle = col;
+    if (id === "miner") { hexPath(0, -68, 8); ctx.stroke(); }
+    else if (id === "validator") { ctx.beginPath(); ctx.moveTo(-7, -68); ctx.lineTo(-2, -62); ctx.lineTo(8, -76); ctx.stroke(); }
+    else if (id === "whale") { ctx.beginPath(); ctx.moveTo(-9, -66); ctx.quadraticCurveTo(-4, -76, 0, -66); ctx.quadraticCurveTo(4, -56, 9, -66); ctx.stroke(); }
+    else if (id === "relay") { ctx.fillRect(-8, -64, 4, 6); ctx.fillRect(-2, -69, 4, 11); ctx.fillRect(4, -75, 4, 17); }
+    else { ctx.beginPath(); ctx.moveTo(0, -78); ctx.lineTo(8, -68); ctx.lineTo(0, -58); ctx.lineTo(-8, -68); ctx.closePath(); ctx.fill(); }
+  }
+  function drawHat(id, col, acc) {
+    if (id === "miner") { ctx.fillStyle = "#fde047"; ctx.beginPath(); ctx.arc(2, -110, 16, Math.PI, 0); ctx.fill(); ctx.fillRect(-16, -111, 38, 4); ctx.fillStyle = "#fff"; ctx.fillRect(14, -118, 5, 5); }
+    else if (id === "validator") { ctx.strokeStyle = acc; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(2, -118, 8, 0, Math.PI * 2); ctx.stroke(); }
+    else if (id === "whale") { ctx.fillStyle = shade(col, -0.2); ctx.beginPath(); ctx.moveTo(-8, -118); ctx.lineTo(-20, -134); ctx.lineTo(4, -122); ctx.closePath(); ctx.fill(); }
+    else if (id === "relay") { ctx.strokeStyle = acc; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(-2, -121); ctx.lineTo(-6, -140); ctx.stroke(); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-6, -141, 4, 0, Math.PI * 2); ctx.fill(); }
+    else { ctx.fillStyle = "#ffd166"; ctx.beginPath(); ctx.moveTo(-12, -120); ctx.lineTo(-12, -134); ctx.lineTo(-6, -126); ctx.lineTo(2, -136); ctx.lineTo(10, -126); ctx.lineTo(16, -134); ctx.lineTo(16, -120); ctx.closePath(); ctx.fill(); }
+  }
+  function drawFighter(f) {
+    const d = f.def, lift = Math.max(0, GROUND - f.y);
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0," + Math.max(0.1, 0.35 - lift / 600) + ")"; ctx.beginPath(); ctx.ellipse(f.x, GROUND + 5, Math.max(10, 28 - lift / 10), 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.translate(f.x, f.y);
+    if (f.state === "ko") ctx.rotate(-f.face * Math.min(1.5, f.koT * 0.12));
+    else if (f.state === "hurt") ctx.rotate(-f.face * 0.18);
+    ctx.scale(f.face, 1);
+    const air = f.y < GROUND - 2, walk = f.state === "walk" ? Math.sin(f.anim * 0.32) : 0, idle = Math.sin(f.anim * 0.1) * 1.5, e = ext(f);
+    const white = f.flash > 0 && f.flash % 2 === 1;
+    const col = white ? "#ffffff" : d.color, dark = white ? "#dddddd" : shade(d.color, -0.4), lite = d.accent, fat = d.fat;
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    let fl = [12 + walk * 14, 0], bl = [-12 - walk * 14, 0];
+    if (air) { fl = [14, -30]; bl = [-10, -24]; }
+    if (f.state === "kick" && f.atk) fl = [14 + e * ATK.kick.range * d.reach * 0.8, -36 - e * 8];
+    if (f.state === "ko") { fl = [12, -6]; bl = [-12, -6]; }
+    let fh = [18, -66 + idle], bh = [-14, -62 + idle], orb = false;
+    if (f.state === "punch" && f.atk) fh = [16 + e * ATK.punch.range * d.reach * 0.9, -80];
+    else if (f.state === "special" && f.atk) { fh = [26 + e * 30, -76]; bh = [22 + e * 28, -70]; orb = e > 0.55; }
+    else if (f.state === "block") { fh = [22, -96]; bh = [16, -84]; }
+    else if (f.state === "win") { fh = [20, -132]; bh = [-14, -128]; }
+    else if (f.state === "hurt" || f.state === "ko") { fh = [4, -56]; bh = [-20, -64]; }
+    else if (air) { fh = [22, -78]; bh = [-16, -74]; }
+    function leg(p, c) { ctx.strokeStyle = c; ctx.lineWidth = 13; ctx.beginPath(); ctx.moveTo(p[0] > 0 ? 6 : -6, -46); ctx.lineTo(p[0], p[1]); ctx.stroke(); }
+    function arm(p, c) { ctx.strokeStyle = c; ctx.lineWidth = 11; ctx.beginPath(); ctx.moveTo(p[0] > 8 ? 6 : -6, -84); ctx.lineTo(p[0], p[1]); ctx.stroke(); ctx.fillStyle = white ? "#fff" : lite; ctx.beginPath(); ctx.arc(p[0], p[1], 6.5, 0, Math.PI * 2); ctx.fill(); }
+    leg(bl, dark); arm(bh, dark);
+    ctx.fillStyle = col; rr(-17 * fat, -92, 34 * fat, 48, 10); ctx.fill();
+    ctx.fillStyle = dark; ctx.fillRect(-17 * fat, -52, 34 * fat, 6);
+    drawEmblem(d.id, white ? "#ccc" : lite);
+    ctx.fillStyle = "#1c2640"; ctx.beginPath(); ctx.arc(2, -108 + idle * 0.5, 15, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = white ? "#fff" : lite; ctx.fillRect(2, -112 + idle * 0.5, 13, 6);
+    drawHat(d.id, d.color, lite);
+    leg(fl, col); arm(fh, col);
+    if (orb) { ctx.fillStyle = lite; ctx.globalAlpha = 0.8; ctx.beginPath(); ctx.arc(fh[0] + 14, fh[1], 8 + e * 8, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
+    if (f.state === "block") { ctx.strokeStyle = lite; ctx.globalAlpha = 0.55; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(8, -70, 52, -1.0, 1.0); ctx.stroke(); ctx.globalAlpha = 1; }
+    ctx.restore();
+  }
+  function drawProj(p) {
+    ctx.save(); ctx.translate(p.x, p.y);
+    const c = p.owner.def.accent;
+    for (let i = 3; i >= 1; i--) { ctx.globalAlpha = 0.18 * (4 - i); ctx.fillStyle = c; ctx.fillRect(-p.vx * i * 1.6 - 6, -6, 12, 12); }
+    ctx.globalAlpha = 1; ctx.rotate(p.spin);
+    ctx.shadowColor = c; ctx.shadowBlur = 14; ctx.fillStyle = p.owner.def.color; rr(-14, -14, 28, 28, 6); ctx.fill();
+    ctx.shadowBlur = 0; ctx.strokeStyle = c; ctx.lineWidth = 3; hexPath(0, 0, 8); ctx.stroke();
+    ctx.restore();
+  }
+  function drawBar(f, x, w, right) {
+    const y = 20, h = 20, ratio = Math.max(0, f.hp / f.max), gr = Math.max(0, f.ghost / f.max), col = right ? "#fb7185" : "#38bdf8";
+    ctx.fillStyle = "rgba(8,12,24,0.8)"; rr(x - 3, y - 3, w + 6, h + 6, 8); ctx.fill();
+    function seg(rt, c) { const sw = w * rt, sx = right ? x + w - sw : x; ctx.fillStyle = c; ctx.fillRect(sx, y, sw, h); }
+    seg(gr, "rgba(255,255,255,0.35)"); seg(ratio, ratio < 0.3 ? "#ff6b6b" : col);
+    ctx.font = "700 13px Sora, sans-serif"; ctx.textBaseline = "alphabetic"; ctx.fillStyle = "#e8eefc";
+    ctx.textAlign = right ? "right" : "left";
+    const label = f.def.name + (f.side === 0 && supporter ? " ✦" : "") + (f.human ? (m.mode === "2p" ? (f.side === 0 ? "  P1" : "  P2") : "") : "  CPU");
+    ctx.fillText(label, right ? x + w : x, 58);
+    const mw = w * 0.5, mx = right ? x + w - mw : x, ready = f.meter >= 100;
+    ctx.fillStyle = "rgba(8,12,24,0.8)"; ctx.fillRect(mx, 64, mw, 7);
+    ctx.fillStyle = ready ? (tick % 20 < 10 ? "#ffd166" : "#fff") : "#ffb020"; ctx.fillRect(right ? mx + mw - mw * f.meter / 100 : mx, 64, mw * f.meter / 100, 7);
+    if (ready) { ctx.font = "600 9px JetBrains Mono, monospace"; ctx.fillStyle = "#ffd166"; ctx.fillText("STRIKE READY", right ? mx - 6 : mx + mw + 6, 71); ctx.textAlign = right ? "right" : "left"; }
+    const wins = m.wins[f.side];
+    for (let i = 0; i < 2; i++) {
+      const px = right ? x + 6 + i * 16 : x + w - 6 - i * 16;
+      ctx.fillStyle = i < wins ? "#ffd166" : "rgba(255,255,255,0.18)"; ctx.beginPath(); ctx.arc(px, 69, 5, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  function drawHUD() {
+    drawBar(m.p1, 24, 330, false); drawBar(m.p2, W - 24 - 330, 330, true);
+    ctx.fillStyle = "rgba(8,12,24,0.85)"; hexPath(W / 2, 32, 28); ctx.fill(); ctx.strokeStyle = "#ffb020"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.font = "600 24px JetBrains Mono, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#e8eefc";
+    ctx.fillText(String(Math.max(0, Math.ceil(timer / 60))), W / 2, 33);
+    for (let s = 0; s < 2; s++) {
+      const f = s === 0 ? m.p1 : m.p2;
+      if (f.chain >= 2) {
+        const cx = s === 0 ? 24 : W - 24;
+        ctx.textAlign = s === 0 ? "left" : "right"; ctx.textBaseline = "alphabetic";
+        ctx.font = "800 " + Math.round(22 + f.pulse * 8) + "px Sora, sans-serif"; ctx.fillStyle = f.def.accent;
+        ctx.fillText("CHAIN x" + f.chain, cx, 110);
+        ctx.font = "600 11px JetBrains Mono, monospace"; ctx.fillStyle = "#93a3c0";
+        ctx.fillText("+" + Math.round(Math.min(f.chain - 1, 6) * 12) + "% DAMAGE", cx, 126);
+      }
+    }
+  }
+  function banner(t, size, c) {
+    ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = "800 " + size + "px Sora, sans-serif";
+    ctx.lineWidth = 6; ctx.strokeStyle = "rgba(0,0,0,0.6)"; ctx.strokeText(t, W / 2, 190); ctx.fillStyle = c; ctx.fillText(t, W / 2, 190);
+  }
+  function draw() {
+    ctx.setTransform(2, 0, 0, 2, 0, 0);
+    ctx.save();
+    if (shake > 0) ctx.translate((Math.random() - 0.5) * shake * 2, (Math.random() - 0.5) * shake * 2);
+    drawArena(arena());
+    if (m) { drawFighter(m.p1); drawFighter(m.p2); } else if (demo) { demo[0].face = 1; demo[1].face = -1; drawFighter(demo[0]); drawFighter(demo[1]); }
+    for (let i = 0; i < projs.length; i++) drawProj(projs[i]);
+    for (let i = 0; i < parts.length; i++) { const p = parts[i]; ctx.globalAlpha = Math.min(1, p.life / 10); ctx.fillStyle = p.c; ctx.fillRect(p.x - p.s / 2, p.y - p.s / 2, p.s, p.s); }
+    ctx.globalAlpha = 1;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = "800 15px Sora, sans-serif";
+    for (let i = 0; i < texts.length; i++) { const t = texts[i]; ctx.globalAlpha = Math.min(1, t.life / 15); ctx.fillStyle = t.c; ctx.fillText(t.s, t.x, t.y); }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+    if (m) {
+      drawHUD();
+      if (phase === "intro") { if (phaseT < 60) banner("ROUND " + m.round, 54, "#e8eefc"); else banner("FIGHT!", 66, "#ffb020"); }
+      else if (phase === "roundEnd") banner(roundMsg, 66, "#ffb020");
+    } else {
+      ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = "800 44px Sora, sans-serif"; ctx.fillStyle = "#e8eefc";
+      ctx.lineWidth = 6; ctx.strokeStyle = "rgba(0,0,0,0.55)"; ctx.strokeText("CRYPTO CLASH", W / 2, 120); ctx.fillText("CRYPTO CLASH", W / 2, 120);
+      ctx.font = "600 16px JetBrains Mono, monospace"; ctx.fillStyle = "#ffb020"; ctx.fillText("C H A I N   S T R I K E", W / 2, 158);
+    }
+  }
+  let last = 0, acc = 0;
+  function frame(ts) {
+    if (!last) last = ts;
+    let dt = ts - last; last = ts; if (dt > 100) dt = 100; acc += dt;
+    while (acc >= 1000 / 60) { if (!paused) update(); acc -= 1000 / 60; }
+    draw(); requestAnimationFrame(frame);
+  }
+
+  // ---------- screens (modal) ----------
+  const ov = $("ov");
+  function modal(html) {
+    ov.innerHTML = '<div class="sheet">' + html + "</div>"; ov.hidden = false; document.body.classList.add("modal-open");
+    const b = ov.querySelector("button:not(:disabled)"); if (b) { try { b.focus({ preventScroll: true }); } catch (e) {} }
+  }
+  function closeModal() { ov.hidden = true; ov.innerHTML = ""; document.body.classList.remove("modal-open"); }
+  function title(t, sub) { return "<h2>" + t + (sub ? '<span class="sub">' + sub + "</span>" : "") + "</h2>"; }
+  function bar(v, max) { return '<span class="bar"><i style="width:' + Math.round(v / max * 100) + '%"></i></span>'; }
+  function fighterBtn(d, act, forOpp) {
+    const locked = d.locked && !supporter && !(forOpp && sel.mode === "quick");
+    return '<button type="button" class="fc" data-act="' + act + '" data-v="' + d.id + '"' + (locked ? " disabled" : "") + '><span class="sw" style="background:' + d.color + '"></span><b>' + d.name + "</b><small>" +
+      (locked ? "Supporter fighter. Tip 0.01 XNO to unlock." : d.blurb) + '</small><span class="bars"><span>HP</span>' + bar(d.hp, 130) + "<span>SPD</span>" + bar(d.speed, 3.8) + "<span>PWR</span>" + bar(d.power, 1.3) + "</span></button>";
+  }
+  let sel = { mode: "arcade", step: "p1", p1: null, p2: null };
+  function menuScreen() {
+    modal(title("Crypto Clash", "Chain Strike") +
+      "<p>Land hits to build a chain. Longer chains hit harder. Fill your meter and fire a Chain Strike.</p>" +
+      '<div class="stack"><button type="button" class="primary" data-act="mode" data-v="arcade">Arcade ladder</button>' +
+      '<button type="button" data-act="mode" data-v="quick">Quick fight</button>' +
+      '<button type="button" data-act="mode" data-v="2p">2 players, one keyboard</button>' +
+      '<button type="button" data-act="rules">How to play</button></div>' +
+      '<p class="small">Ladder best: ' + stats.ladderBest + "/4. Fights won: " + stats.won + ".</p>" +
+      (m ? '<button type="button" data-act="resume">Back to the fight</button>' : ""));
+  }
+  function pickScreen() {
+    let t, sub, act, forOpp = false;
+    if (sel.step === "p1") { t = sel.mode === "2p" ? "Player 1: choose a fighter" : "Choose your fighter"; sub = sel.mode === "arcade" ? "Arcade ladder" : sel.mode === "quick" ? "Quick fight" : "2 players"; act = "pick"; }
+    else { t = sel.mode === "2p" ? "Player 2: choose a fighter" : "Choose your opponent"; sub = "Quick fight"; act = "pick"; forOpp = true; if (sel.mode === "2p") sub = "2 players"; }
+    modal(title(t, sub) + '<div class="grid">' + ROSTER.map(function (d) { return fighterBtn(d, act, forOpp); }).join("") + "</div>" + '<button type="button" data-act="menu">Back</button>');
+  }
+  function diffScreen() {
+    modal(title("Pick a difficulty", "Quick fight") + "<p>Opponent: " + sel.p2.name + "</p>" +
+      '<div class="stack"><button type="button" data-act="diff" data-v="easy">Easy</button><button type="button" class="primary" data-act="diff" data-v="normal">Normal</button><button type="button" data-act="diff" data-v="hard">Hard</button></div>' +
+      '<button type="button" data-act="menu">Back</button>');
+  }
+  function pauseScreen() {
+    modal(title("Paused") + '<div class="stack"><button type="button" class="primary" data-act="resume">Resume</button><button type="button" data-act="restart">Restart this fight</button><button type="button" data-act="rules">How to play</button><button type="button" data-act="quit">Quit to menu</button></div>');
+  }
+  function showResult(win) {
+    const two = m.mode === "2p", last = m.mode === "arcade" && m.idx === m.ladder.length - 1;
+    let h;
+    if (two) h = title(m.wins[0] >= 2 ? "Player 1 wins" : "Player 2 wins", "Round score " + m.wins[0] + " to " + m.wins[1]);
+    else h = title(win ? (m.mode === "arcade" && last ? "Ladder cleared" : "Victory") : "Defeated", "Round score " + m.wins[0] + " to " + m.wins[1]);
+    h += '<div class="big">x' + m.p1.best + '</div><p class="small">Your best chain this fight' + (two ? " (player 1)" : "") + ".</p>";
+    h += '<div class="stack">';
+    if (m.mode === "arcade" && win && !last) h += '<button type="button" class="primary" data-act="next">Next opponent: ' + m.ladder[m.idx + 1].name + "</button>";
+    else if (m.mode === "arcade" && win) h += '<button type="button" class="primary" data-act="mode" data-v="arcade">Climb again</button>';
+    else h += '<button type="button" class="primary" data-act="restart">' + (two ? "Rematch" : (win ? "Fight again" : "Retry")) + "</button>";
+    h += '<div class="row2"><button type="button" data-act="share">Share</button><button type="button" data-act="tip">Tip 0.01 XNO</button></div>';
+    h += '<button type="button" data-act="quit">Menu</button></div><div class="status" id="o-status" role="status"></div>';
+    modal(h);
+  }
+  function rulesScreen() {
+    closeModal(); $("rules").open = true;
+    try { $("rules").scrollIntoView({ behavior: "smooth", block: "start" }); } catch (e) {}
+  }
+  function copyText(text, ok, fail) { try { navigator.clipboard.writeText(text).then(ok, fail); } catch (e) { fail(); } }
+  function shareUrl() { return location.href.split("#")[0].split("?")[0]; }
+  function doShare() {
+    const opp = m.p2.def.name;
+    const msg = (m.wins[0] >= 2 ? "I beat " + opp + " " + m.wins[0] + " to " + m.wins[1] : "I lost to " + opp + " " + m.wins[0] + " to " + m.wins[1]) + " in Crypto Clash: Chain Strike with a x" + m.p1.best + " chain. Can you beat it? " + shareUrl();
+    function fallback() { copyText(msg, function () { const s = $("o-status"); if (s) s.textContent = "Copied. Paste it into a message to challenge a friend."; }, function () { const s = $("o-status"); if (s) s.textContent = msg; }); }
+    if (navigator.share) { navigator.share({ text: msg }).catch(fallback); return; }
+    fallback();
+  }
+  function buildLadder(p1) {
+    const others = ROSTER.filter(function (d) { return d !== p1 && !d.locked; });
+    for (let i = others.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = others[i]; others[i] = others[j]; others[j] = t; }
+    const boss = p1.id === "genesis" ? others.pop() : ROSTER[4];
+    return others.slice(0, 3).concat([boss]);
+  }
+  const LADDER_DIFF = ["easy", "normal", "normal", "hard"];
+  function startArcade(p1, ladder, idx) { startMatch({ mode: "arcade", p1: p1, p2: ladder[idx], diff: LADDER_DIFF[idx], ladder: ladder, idx: idx }); }
+  function togglePause() {
+    if (!m) return;
+    if (!ov.hidden && paused) { paused = false; closeModal(); return; }
+    if (phase === "matchEnd") return;
+    paused = true; pauseScreen();
+  }
+  ov.addEventListener("click", function (e) {
+    const b = e.target.closest("[data-act]"); if (!b || b.disabled) return;
+    initAudio();
+    const act = b.getAttribute("data-act"), v = b.getAttribute("data-v");
+    if (act === "mode") { m = null; phase = "menu"; paused = false; sel = { mode: v, step: "p1", p1: null, p2: null }; pickScreen(); }
+    else if (act === "pick") {
+      const d = ROSTER.find(function (x) { return x.id === v; });
+      if (sel.step === "p1") {
+        sel.p1 = d;
+        if (sel.mode === "arcade") { startArcade(d, buildLadder(d), 0); }
+        else { sel.step = "p2"; pickScreen(); }
+      } else {
+        sel.p2 = d;
+        if (sel.mode === "2p") startMatch({ mode: "2p", p1: sel.p1, p2: d, diff: "normal" }); else diffScreen();
+      }
+    }
+    else if (act === "diff") startMatch({ mode: "quick", p1: sel.p1, p2: sel.p2, diff: v });
+    else if (act === "menu") { m = null; phase = "menu"; paused = false; menuScreen(); }
+    else if (act === "resume") { paused = false; closeModal(); }
+    else if (act === "restart") { const c = m.cfg; if (m.mode === "arcade") startArcade(c.p1, c.ladder, c.idx); else startMatch(c); }
+    else if (act === "next") { const c = m.cfg; startArcade(c.p1, c.ladder, c.idx + 1); }
+    else if (act === "quit") { m = null; phase = "menu"; paused = false; projs.length = 0; menuScreen(); }
+    else if (act === "rules") rulesScreen();
+    else if (act === "share") doShare();
+    else if (act === "tip") {
+      closeModal(); pickAmount(document.querySelector('.amounts button[data-amt="0.01"]'));
+      try { $("tip").scrollIntoView({ behavior: "smooth", block: "start" }); } catch (e2) {}
+    }
+  });
+  $("btn-menu").addEventListener("click", function () {
+    initAudio();
+    if (m && phase !== "matchEnd") { paused = true; pauseScreen(); } else { paused = false; if (m) { m = null; phase = "menu"; } menuScreen(); }
+  });
+  function renderSound() { $("btn-snd").setAttribute("aria-pressed", muted ? "false" : "true"); $("btn-snd").textContent = muted ? "Sound off" : "Sound on"; }
+  $("btn-snd").addEventListener("click", function () { muted = !muted; lsSet("cc-mute", muted ? "1" : "0"); renderSound(); initAudio(); });
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden && m && phase === "fight" && !paused) { paused = true; pauseScreen(); }
+  });
+
+  // ---------- page cards ----------
+  function renderStats() {
+    $("st-won").textContent = stats.won; $("st-lost").textContent = stats.lost; $("st-streak").textContent = stats.streak;
+    $("st-bstreak").textContent = stats.bestStreak; $("st-chain").textContent = "x" + stats.chain;
+    $("st-ladder").textContent = stats.ladderBest + "/4"; $("st-clears").textContent = stats.ladderClears;
+  }
+  function renderArenas() {
+    const box = $("arenas"); box.innerHTML = "";
+    ARENAS.forEach(function (a) {
+      const locked = a.locked && !supporter, b = document.createElement("button");
+      b.type = "button"; b.disabled = locked; b.setAttribute("aria-pressed", String(arena().id === a.id));
+      b.innerHTML = a.name + "<small>" + (locked ? "Supporter" : (a.locked ? "Supporter unlocked" : "Free")) + "</small>";
+      b.addEventListener("click", function () { arenaId = a.id; lsSet("cc-arena", a.id); renderArenas(); });
+      box.appendChild(b);
+    });
+    $("arena-note").textContent = supporter ? "Thank you for supporting the game." : "Tip 0.01 XNO or more to unlock the Gold Vault arena and the Genesis fighter.";
+    $("supmark").hidden = !supporter;
+  }
+
+  // ---------- tip card ----------
+  let tipAmt = "0.01", qr = null, checking = false;
+  function toRaw(xno) {
+    const parts = xno.split("."), frac = ((parts[1] || "") + "000000000000000000000000000000").slice(0, 30);
+    return (BigInt(parts[0]) * 10n ** 30n + BigInt(frac)).toString();
+  }
+  function uriFor(a) { return "nano:" + NANO_ADDRESS + (a ? "?amount=" + toRaw(a) : ""); }
+  function setPending() { if (tipAmt) lsSet("cc-tip", JSON.stringify({ amt: tipAmt, ts: Date.now() })); }
+  function renderTip() {
+    $("addr").textContent = NANO_ADDRESS;
+    const uri = uriFor(tipAmt);
+    $("openw").href = uri;
+    $("check").hidden = !tipAmt;
+    $("thint").textContent = tipAmt
+      ? "On a phone, tap Open in wallet. On a computer, scan the code with your Nano wallet. Then press the check button."
+      : "Any amount is welcome. Tips sent this way can't be checked automatically, so they don't unlock supporter perks.";
+    try {
+      if (typeof QRCode === "undefined") throw new Error("no qr");
+      if (!qr) qr = new QRCode($("qr"), { text: uri, width: 168, height: 168, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
+      else { qr.clear(); qr.makeCode(uri); }
+    } catch (e) { $("qr").style.display = "none"; }
+  }
+  function pickAmount(btn) {
+    if (!btn) return;
+    document.querySelectorAll(".amounts button").forEach(function (o) { o.setAttribute("aria-pressed", "false"); });
+    btn.setAttribute("aria-pressed", "true");
+    tipAmt = btn.getAttribute("data-amt"); setPending(); renderTip(); $("tstatus").textContent = "";
+  }
+  document.querySelectorAll(".amounts button").forEach(function (b) { b.addEventListener("click", function () { pickAmount(b); }); });
+  $("openw").addEventListener("click", function () { setPending(); $("tstatus").textContent = "After you send, come back here and press the check button."; });
+  $("copy").addEventListener("click", function () {
+    setPending();
+    copyText(NANO_ADDRESS, function () { $("tstatus").textContent = "Address copied."; }, function () {
+      const r = document.createRange(); r.selectNodeContents($("addr")); const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      $("tstatus").textContent = "Address selected. Press copy on your device.";
+    });
+  });
+  function rpc(body) {
+    let i = 0;
+    return new Promise(function (resolve, reject) {
+      (function next() {
+        if (i >= RPCS.length) { reject(new Error("unreachable")); return; }
+        const url = RPCS[i++], ctl = new AbortController(), t = setTimeout(function () { ctl.abort(); }, 6000);
+        fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: ctl.signal })
+          .then(function (r) { return r.json(); })
+          .then(function (j) { clearTimeout(t); resolve(j); })
+          .catch(function () { clearTimeout(t); next(); });
+      })();
+    });
+  }
+  async function findTip(min, since) {
+    const claimed = jget("cc-claimed", []), need = BigInt(toRaw(min));
+    let reachable = false;
+    try {
+      const h = await rpc({ action: "account_history", account: NANO_ADDRESS, count: "60" });
+      reachable = true;
+      if (h && Array.isArray(h.history)) {
+        for (const b of h.history) {
+          if (b.type !== "receive" || claimed.indexOf(b.hash) >= 0) continue;
+          const ts = +b.local_timestamp;
+          if (ts > 0 && ts * 1000 < since - 120000) continue;
+          if (BigInt(b.amount) >= need) return { ok: true, hash: b.hash };
+        }
+      }
+    } catch (e) {}
+    for (const cmd of ["receivable", "pending"]) {
+      try {
+        const p = await rpc({ action: cmd, account: NANO_ADDRESS, count: "60", threshold: need.toString(), source: "true" });
+        reachable = true;
+        if (p && p.error) continue;
+        const bl = p && p.blocks;
+        if (bl && typeof bl === "object") {
+          for (const hsh in bl) {
+            if (claimed.indexOf(hsh) >= 0) continue;
+            const v = bl[hsh], amt = typeof v === "object" ? v.amount : v;
+            if (BigInt(amt) >= need) return { ok: true, hash: hsh };
+          }
+        }
+        break;
+      } catch (e) {}
+    }
+    return { ok: false, reachable: reachable };
+  }
+  function unlockSupporter(hash) {
+    const claimed = jget("cc-claimed", []); claimed.push(hash); lsSet("cc-claimed", JSON.stringify(claimed.slice(-50)));
+    supporter = true; lsSet("cc-sup", "1"); renderArenas(); lsSet("cc-tip", "");
+    $("tstatus").textContent = "Thank you! Your tip arrived. The Genesis fighter and Gold Vault arena are unlocked.";
+  }
+  async function runCheck(tries, silent) {
+    if (checking) return;
+    const pend = jget("cc-tip", null);
+    if (!pend || !pend.amt) { if (!silent) $("tstatus").textContent = "Pick an amount first."; return; }
+    checking = true; $("check").disabled = true;
+    if (!silent) $("tstatus").textContent = "Checking the Nano network…";
+    let res = { ok: false, reachable: false };
+    for (let i = 0; i < tries; i++) {
+      res = await findTip(pend.amt, pend.ts);
+      if (res.ok) break;
+      if (i < tries - 1) await new Promise(function (r) { setTimeout(r, 4000); });
+    }
+    checking = false; $("check").disabled = false;
+    if (res.ok) unlockSupporter(res.hash);
+    else if (!silent) $("tstatus").textContent = res.reachable
+      ? "Not seen yet. Transfers take a few seconds, so press the check button again in a moment."
+      : "Couldn't reach the Nano network from here. Try again shortly.";
+  }
+  $("check").addEventListener("click", function () { runCheck(8, false); });
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden && !supporter && jget("cc-tip", null)) runCheck(4, true);
+  });
+  if (jget("cc-tip", null) && !jget("cc-tip", null).amt) lsSet("cc-tip", "");
+
+  // ---------- go ----------
+  renderTip(); renderStats(); renderArenas(); renderSound(); makeDemo();
+  menuScreen();
+  requestAnimationFrame(frame);
+  if (/[?&]selftest/.test(location.search)) {
+    window.__cc = { startMatch: startMatch, update: update, ROSTER: ROSTER, aiInput: aiInput, get m() { return m; }, get phase() { return phase; }, get projs() { return projs; }, stats: stats };
+  }
+})();
+</script>
+</body>
+</html>
