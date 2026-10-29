@@ -171,6 +171,10 @@ footer { color:var(--muted); font-size:0.8rem; }
       <p>Hits fill your meter. At 100% you can fire a Chain Strike block across the arena. It hits hard and stuns for a long time. Blocking it still costs a little health, and jumping high enough clears it.</p>
       <h3>Blocking and jumping</h3>
       <p>Blocking cuts damage by 85% and fills a little meter, but you cannot block in the air. Kicks are low, so a good jump avoids them.</p>
+      <h3>More moves and combos</h3>
+      <p><b>Dash</b>: double-tap left or right. <b>Uppercut</b>: hold Block and press Punch, it launches the enemy. <b>Sweep</b>: hold Block and press Kick, a low hit that jumpers avoid. Each fighter has their own Chain Strike. Land the right three hits inside one chain for a named combo with bonus damage: Hash Rush (Punch, Punch, Kick), Fork Lift (Punch, Kick, Uppercut), Ledger Sweep (Kick, Kick, Sweep) and Mempool Mix (Kick, Punch, Punch). The full list is under Moves and combos in the menu.</p>
+      <h3>Too hard?</h3>
+      <p>Pick <b>Casual</b> for a relaxed ladder or quick fight, or try <b>Training</b> where the dummy never fights back and your Chain Strike refills.</p>
       <h3>Modes</h3>
       <p><b>Arcade ladder</b> sends four opponents at you with rising difficulty, ending with the Genesis boss. <b>Quick fight</b> lets you pick your opponent and difficulty. <b>2 players</b> is local versus on one keyboard.</p>
       <h3>Daily challenge</h3>
@@ -236,7 +240,7 @@ footer { color:var(--muted); font-size:0.8rem; }
     </div>
   </aside>
 
-  <footer>Only send XNO to the address shown above. Transfers on the Nano network cannot be reversed. <span class="mono">v1.2</span></footer>
+  <footer>Only send XNO to the address shown above. Transfers on the Nano network cannot be reversed. <span class="mono">v1.3</span></footer>
 </div>
 
 <div class="modal" id="ov" role="dialog" aria-modal="true" hidden></div>
@@ -259,11 +263,11 @@ footer { color:var(--muted); font-size:0.8rem; }
   cv.width = W * 2; cv.height = H * 2;
 
   const ROSTER = [
-    { id: "miner", name: "Hash Miner", color: "#f59e0b", accent: "#fde68a", hp: 100, speed: 3.0, power: 1.0, jump: 12.5, reach: 1.0, fat: 1.0, blurb: "Balanced. Hits like a block reward." },
-    { id: "validator", name: "Validator", color: "#38bdf8", accent: "#bae6fd", hp: 95, speed: 3.6, power: 0.92, jump: 13, reach: 1.0, fat: 0.92, blurb: "Fast and light. Confirms combos quickly." },
-    { id: "whale", name: "Whale", color: "#a78bfa", accent: "#ddd6fe", hp: 125, speed: 2.4, power: 1.25, jump: 11.5, reach: 1.0, fat: 1.3, blurb: "Slow and huge. Every hit moves the market." },
-    { id: "relay", name: "Relay", color: "#34d399", accent: "#a7f3d0", hp: 105, speed: 3.2, power: 0.95, jump: 12.5, reach: 1.2, fat: 1.0, blurb: "Long reach. Keeps you at the end of the line." },
-    { id: "genesis", name: "Genesis", color: "#fbbf24", accent: "#fff7d6", hp: 112, speed: 3.4, power: 1.1, jump: 13, reach: 1.1, fat: 1.05, locked: true, blurb: "Supporter fighter. Gold block armour." }
+    { id: "miner", name: "Hash Miner", color: "#f59e0b", accent: "#fde68a", hp: 100, speed: 3.0, power: 1.0, jump: 12.5, reach: 1.0, fat: 1.0, blurb: "Balanced. Hits like a block reward.", sp: { name: "Block Reward", shots: [{ dx: 0, dy: 62, v: 8.5, dmg: 16, stun: 30, kb: 8, size: 1 }] } },
+    { id: "validator", name: "Validator", color: "#38bdf8", accent: "#bae6fd", hp: 95, speed: 3.6, power: 0.92, jump: 13, reach: 1.0, fat: 0.92, blurb: "Fast and light. Confirms combos quickly.", sp: { name: "Double Confirm", shots: [{ dx: 0, dy: 62, v: 9.5, dmg: 9, stun: 24, kb: 5, size: 0.8 }, { dx: -75, dy: 62, v: 9.5, dmg: 9, stun: 24, kb: 5, size: 0.8 }] } },
+    { id: "whale", name: "Whale", color: "#a78bfa", accent: "#ddd6fe", hp: 125, speed: 2.4, power: 1.25, jump: 11.5, reach: 1.0, fat: 1.3, blurb: "Slow and huge. Every hit moves the market.", sp: { name: "Tidal Slam", shots: [{ dx: 0, dy: 62, v: 5.5, dmg: 24, stun: 42, kb: 12, size: 1.8 }] } },
+    { id: "relay", name: "Relay", color: "#34d399", accent: "#a7f3d0", hp: 105, speed: 3.2, power: 0.95, jump: 12.5, reach: 1.2, fat: 1.0, blurb: "Long reach. Keeps you at the end of the line.", sp: { name: "Fast Forward", shots: [{ dx: 0, dy: 62, v: 14, dmg: 15, stun: 30, kb: 8, size: 0.9 }] } },
+    { id: "genesis", name: "Genesis", color: "#fbbf24", accent: "#fff7d6", hp: 112, speed: 3.4, power: 1.1, jump: 13, reach: 1.1, fat: 1.05, locked: true, blurb: "Supporter fighter. Gold block armour.", sp: { name: "Genesis Burst", shots: [{ dx: 0, dy: 28, v: 8.5, dmg: 9, stun: 28, kb: 6, size: 0.9 }, { dx: 0, dy: 98, v: 8.5, dmg: 9, stun: 28, kb: 6, size: 0.9 }] } }
   ];
   const ARENAS = [
     { id: "genesis", name: "Genesis Block", sky: ["#0b1530", "#14264d"], grid: "#2a4a86", block: "#18305c", glow: "#4ea1ff", floor: "#0d1a35" },
@@ -275,14 +279,31 @@ footer { color:var(--muted); font-size:0.8rem; }
   const ATK = {
     punch: { startup: 4, active: 4, rec: 9, dmg: 6, range: 62, stun: 20, kb: 3.5, top: 100, bot: 40, lunge: 1.5 },
     kick: { startup: 8, active: 5, rec: 14, dmg: 10, range: 80, stun: 26, kb: 6, top: 62, bot: 0, lunge: 2.2 },
-    special: { startup: 16, active: 1, rec: 22, proj: true, dmg: 16, stun: 30, kb: 8 }
+    special: { startup: 16, active: 1, rec: 22, proj: true, dmg: 16, stun: 30, kb: 8 },
+    uppercut: { startup: 7, active: 4, rec: 20, dmg: 9, range: 54, stun: 38, kb: 2.5, top: 125, bot: 20, lunge: 0.8, launch: 7.5 },
+    sweep: { startup: 9, active: 4, rec: 18, dmg: 8, range: 88, stun: 34, kb: 7, top: 24, bot: 0, lunge: 1.5 }
   };
   const DIFF = {
+    casual: { block: 0.08, aggr: 0.4, spec: 0.12, react: 20, tick: [24, 48], combo: 0.02 },
     easy: { block: 0.2, aggr: 0.55, spec: 0.3, react: 14, tick: [16, 34], combo: 0.06 },
     normal: { block: 0.5, aggr: 0.85, spec: 0.6, react: 8, tick: [10, 24], combo: 0.18 },
     hard: { block: 0.75, aggr: 1.15, spec: 0.9, react: 4, tick: [6, 15], combo: 0.35 }
   };
   const CHAIN_WINDOW = 55;
+  // Land these three hits in a row inside one chain for bonus damage and meter.
+  const COMBOS = [
+    { name: "Hash Rush", seq: ["punch", "punch", "kick"], dmg: 9, meter: 15 },
+    { name: "Fork Lift", seq: ["punch", "kick", "uppercut"], dmg: 10, meter: 15 },
+    { name: "Ledger Sweep", seq: ["kick", "kick", "sweep"], dmg: 9, meter: 20 },
+    { name: "Mempool Mix", seq: ["kick", "punch", "punch"], dmg: 8, meter: 20 }
+  ];
+  function checkCombo(att) {
+    const s = att.seq;
+    if (s.length < 3) return null;
+    const t = s.slice(-3);
+    for (let i = 0; i < COMBOS.length; i++) { const c = COMBOS[i]; if (c.seq[0] === t[0] && c.seq[1] === t[1] && c.seq[2] === t[2]) return c; }
+    return null;
+  }
 
   // ---------- persistent state ----------
   let supporter = lsGet("cc-sup", "0") === "1";
@@ -318,7 +339,7 @@ footer { color:var(--muted); font-size:0.8rem; }
   }
   function dailyFor(key) {
     const r = seeded(hashStr("cc-daily-" + key)), pool = ROSTER.filter(function (d) { return !d.locked; }), ars = ARENAS.filter(function (a) { return !a.locked; });
-    return { key: key, no: dayNumber(key), opp: pool[Math.floor(r() * pool.length)], tw: TWISTS[Math.floor(r() * TWISTS.length)], arena: ars[Math.floor(r() * ars.length)], diff: r() < 0.5 ? "normal" : "hard" };
+    return { key: key, no: dayNumber(key), opp: pool[Math.floor(r() * pool.length)], tw: TWISTS[Math.floor(r() * TWISTS.length)], arena: ars[Math.floor(r() * ars.length)], diff: ["easy", "normal", "normal", "hard"][Math.floor(r() * 4)] };
   }
   const daily = Object.assign({ last: "", streak: 0, best: 0, cleared: 0 }, jget("cc-daily", {}));
   function liveStreak() { const k = dateKey(); return (daily.last === k || daily.last === prevKey(k)) ? daily.streak : 0; }
@@ -361,13 +382,13 @@ footer { color:var(--muted); font-size:0.8rem; }
   function mk(def, side, human) {
     return { def: def, side: side, human: human, x: 0, y: GROUND, vx: 0, vy: 0, face: 1, hp: def.hp, max: def.hp, ghost: def.hp,
       state: "idle", t: 0, koT: 0, atk: null, hitDone: false, stun: 0, meter: 0, chain: 0, chainT: 0, best: 0, buf: null,
-      blocking: false, win: false, flash: 0, pulse: 0, atkId: 0, anim: 0, diff: "normal",
+      blocking: false, win: false, flash: 0, pulse: 0, atkId: 0, anim: 0, diff: "normal", seq: [], dashT: 0, dashCd: 0,
       ai: { t: 0, move: 0, jump: false, blockT: 0, willBlock: false, reactFor: -1, reactWait: 0, projSeen: -1 } };
   }
   function resetFighter(f) {
     f.x = f.side === 0 ? 240 : 560; f.y = GROUND; f.vx = 0; f.vy = 0; f.face = f.side === 0 ? 1 : -1;
     f.hp = f.max; f.ghost = f.max; f.state = "idle"; f.t = 0; f.koT = 0; f.atk = null; f.stun = 0; f.meter = mv("start", 0);
-    f.chain = 0; f.chainT = 0; f.buf = null; f.blocking = false; f.win = false; f.flash = 0; f.pulse = 0;
+    f.chain = 0; f.chainT = 0; f.buf = null; f.blocking = false; f.win = false; f.flash = 0; f.pulse = 0; f.seq = []; f.dashT = 0; f.dashCd = 0;
   }
 
   // ---------- game state ----------
@@ -392,11 +413,14 @@ footer { color:var(--muted); font-size:0.8rem; }
     return { l: ["KeyA", "ArrowLeft", "T_L"], r: ["KeyD", "ArrowRight", "T_R"], u: ["KeyW", "ArrowUp", "T_U"], d: ["KeyS", "ArrowDown", "T_D"],
       punch: ["KeyJ", "KeyZ", "T_P"], kick: ["KeyK", "KeyX", "T_K"], special: ["KeyL", "KeyC", "T_S"] };
   }
+  const dashTap = [{ l: -99, r: -99 }, { l: -99, r: -99 }];
   function readInput(side) {
-    const km = keymap(side), held = { l: isDown(km.l), r: isDown(km.r), u: isDown(km.u), d: isDown(km.d) }, press = [];
+    const km = keymap(side), held = { l: isDown(km.l), r: isDown(km.r), u: isDown(km.u), d: isDown(km.d), dash: 0 }, press = [];
     for (let i = 0; i < pressQ.length; i++) {
       const c = pressQ[i];
-      if (km.punch.indexOf(c) >= 0) press.push("punch");
+      if (km.l.indexOf(c) >= 0) { if (tick - dashTap[side].l < 20) held.dash = -1; dashTap[side].l = tick; }
+      else if (km.r.indexOf(c) >= 0) { if (tick - dashTap[side].r < 20) held.dash = 1; dashTap[side].r = tick; }
+      else if (km.punch.indexOf(c) >= 0) press.push("punch");
       else if (km.kick.indexOf(c) >= 0) press.push("kick");
       else if (km.special.indexOf(c) >= 0) press.push("special");
     }
@@ -414,7 +438,7 @@ footer { color:var(--muted); font-size:0.8rem; }
   window.addEventListener("blur", function () { down.clear(); });
   document.querySelectorAll("#touch button").forEach(function (b) {
     const k = "T_" + b.getAttribute("data-k"), isAtk = "PKS".indexOf(b.getAttribute("data-k")) >= 0;
-    function dn(e) { e.preventDefault(); initAudio(); down.add(k); if (isAtk) { pressQ.push(k); if (pressQ.length > 24) pressQ.shift(); } b.classList.add("on"); }
+    function dn(e) { e.preventDefault(); initAudio(); down.add(k); pressQ.push(k); if (pressQ.length > 24) pressQ.shift(); b.classList.add("on"); }
     function up() { down.delete(k); b.classList.remove("on"); }
     b.addEventListener("pointerdown", dn); b.addEventListener("pointerup", up); b.addEventListener("pointercancel", up); b.addEventListener("pointerleave", up);
     b.addEventListener("contextmenu", function (e) { e.preventDefault(); });
@@ -445,7 +469,8 @@ footer { color:var(--muted); font-size:0.8rem; }
   }
   function step(f, o, inp, press) {
     f.anim++; if (f.flash > 0) f.flash--; if (f.pulse > 0) f.pulse = Math.max(0, f.pulse - 0.05);
-    if (f.chainT > 0) { f.chainT--; if (f.chainT === 0) f.chain = 0; }
+    if (f.chainT > 0) { f.chainT--; if (f.chainT === 0) { f.chain = 0; f.seq = []; } }
+    if (f.dashCd > 0) f.dashCd--;
     f.ghost = f.ghost > f.hp ? Math.max(f.hp, f.ghost - 0.25) : f.hp;
     let air = f.y < GROUND;
     if (f.state === "ko") { f.koT++; phys(f, 0.9); return; }
@@ -468,6 +493,11 @@ footer { color:var(--muted); font-size:0.8rem; }
       phys(f, 0.8); return;
     }
     if (f.win) { f.state = "win"; f.vx = 0; f.blocking = false; phys(f, 0.8); return; }
+    if (f.dashT > 0) { f.dashT--; f.blocking = false; f.state = "walk"; phys(f, 0.95); return; }
+    if (inp.dash && !air && f.dashCd <= 0) {
+      f.dashT = 10; f.dashCd = 28; f.vx = inp.dash * 11; f.blocking = false; f.state = "walk";
+      dust(f.x, GROUND, 5); beep(220, 0.06, "triangle", 0.03, -80); phys(f, 0.95); return;
+    }
     const dir = (inp.r ? 1 : 0) - (inp.l ? 1 : 0);
     const away = dir !== 0 && dir === -f.face;
     const threat = (o.atk && !o.atk.proj && Math.abs(o.x - f.x) < 130) || projs.some(function (p) { return p.owner !== f && Math.abs(p.x - f.x) < 170; });
@@ -480,7 +510,8 @@ footer { color:var(--muted); font-size:0.8rem; }
     }
     if (inp.u && !air && !f.blocking) { f.vy = -f.def.jump; f.vx = dir * f.def.speed; f.state = "jump"; beep(260, 0.08, "triangle", 0.03, 200); }
     if (f.buf) {
-      const b = f.buf.a; f.buf = null;
+      let b = f.buf.a; f.buf = null;
+      if (inp.d && !air) { if (b === "punch") b = "uppercut"; else if (b === "kick") b = "sweep"; }
       startAtk(f, b);
     }
     phys(f, 1);
@@ -503,21 +534,35 @@ footer { color:var(--muted); font-size:0.8rem; }
       return;
     }
     att.chain++; att.chainT = CHAIN_WINDOW; att.pulse = 1; att.best = Math.max(att.best, att.chain);
+    if (!a.proj) { att.seq.push(a.type); if (att.seq.length > 4) att.seq.shift(); }
+    def.seq = [];
     const mult = 1 + 0.12 * Math.min(att.chain - 1, 6);
     def.hp = Math.max(0, def.hp - a.dmg * att.def.power * mult * mv("dmg", 1));
     def.stun = Math.max(10, a.stun - 3 * Math.max(0, att.chain - 2));
     def.state = "hurt"; def.atk = null; def.buf = null; def.blocking = false;
     def.vx = att.face * a.kb; if (a.type !== "punch" && def.y >= GROUND) def.vy = -3.5;
+    if (a.launch) def.vy = -a.launch;
     def.chain = 0; def.chainT = 0; def.flash = 6;
     att.meter = Math.min(100, att.meter + 10 * mv("meter", 1)); def.meter = Math.min(100, def.meter + 5 * mv("meter", 1));
     sparks(cx, cy, att.def.accent, 10 + att.chain * 2, 5); sparks(cx, cy, "#ffffff", 4, 4);
     if (att.chain > 1) addText(cx, cy - 26, "CHAIN x" + att.chain, att.def.accent);
     beep(190 + att.chain * 22, 0.09, "square", 0.06, -100);
     hitstop = Math.max(hitstop, a.proj ? 8 : 5); shake = Math.max(shake, a.proj ? 7 : 3 + Math.min(att.chain, 4));
-    if (def.hp <= 0) { def.state = "ko"; def.koT = 0; def.atk = null; def.vx = att.face * 7; def.vy = -8; beep(90, 0.5, "sawtooth", 0.08, -50); }
+    const cb = a.proj ? null : checkCombo(att);
+    if (cb) {
+      def.hp = Math.max(0, def.hp - cb.dmg * att.def.power * mv("dmg", 1)); att.meter = Math.min(100, att.meter + cb.meter);
+      def.stun += 10; att.seq = [];
+      addText(att.x + att.face * 20, att.y - 150, cb.name.toUpperCase() + "!", "#ffd166");
+      sparks(cx, cy, "#ffd166", 14, 6); beep(520, 0.18, "square", 0.06, 300); hitstop = Math.max(hitstop, 8); shake = Math.max(shake, 6);
+    }
+    if (def.hp <= 0 && m.mode !== "train") { def.state = "ko"; def.koT = 0; def.atk = null; def.vx = att.face * 7; def.vy = -8; beep(90, 0.5, "sawtooth", 0.08, -50); }
   }
   function spawnProj(f) {
-    projs.push({ id: ++pid, x: f.x + f.face * 40, y: f.y - 62, vx: f.face * 8.5, owner: f, life: 90, spin: 0, data: ATK.special });
+    const sp = f.def.sp;
+    addText(f.x, f.y - 150, sp.name.toUpperCase(), f.def.accent);
+    sp.shots.forEach(function (s) {
+      projs.push({ id: ++pid, x: f.x + f.face * (40 + s.dx), y: f.y - s.dy, vx: f.face * s.v, owner: f, life: 130, spin: 0, size: s.size, data: { proj: true, dmg: s.dmg, stun: s.stun, kb: s.kb } });
+    });
   }
   function updateProjs() {
     for (let i = projs.length - 1; i >= 0; i--) {
@@ -525,7 +570,7 @@ footer { color:var(--muted); font-size:0.8rem; }
       p.x += p.vx; p.life--; p.spin += 0.2;
       if (tick % 2 === 0) parts.push({ x: p.x, y: p.y + (Math.random() - 0.5) * 16, vx: -p.vx * 0.1, vy: 0, g: 0, life: 14, c: p.owner.def.accent, s: 4 });
       let dead = p.life <= 0 || p.x < -30 || p.x > W + 30;
-      if (!dead && o.state !== "ko" && overlap(p.x - 14, p.y - 14, p.x + 14, p.y + 14, o.x - 22, o.y - 112, o.x + 22, o.y)) {
+      if (!dead && o.state !== "ko" && overlap(p.x - 14 * p.size, p.y - 14 * p.size, p.x + 14 * p.size, p.y + 14 * p.size, o.x - 22, o.y - 112, o.x + 22, o.y)) {
         applyHit(p.owner, o, Object.assign({ type: "special" }, p.data)); dead = true;
       }
       if (dead) projs.splice(i, 1);
@@ -542,6 +587,7 @@ footer { color:var(--muted); font-size:0.8rem; }
 
   // ---------- CPU opponent ----------
   function aiInput(f, o) {
+    if (f.diff === "dummy") return { held: { l: false, r: false, u: false, d: false }, press: [] };
     const d = DIFF[f.diff] || DIFF.normal, A = f.ai, held = { l: false, r: false, u: false, d: false }, press = [];
     const dx = o.x - f.x, dist = Math.abs(dx), dir = dx >= 0 ? 1 : -1, air = f.y < GROUND;
     let threat = false;
@@ -571,6 +617,7 @@ footer { color:var(--muted); font-size:0.8rem; }
         else if (r < 0.55) A.move = dir; else if (r < 0.7) press.push("kick"); else if (r < 0.78) A.jump = true;
       } else {
         if (r < 0.3 * d.aggr) press.push("punch"); else if (r < 0.5 * d.aggr) press.push("kick");
+        else if (r < 0.5 * d.aggr + 0.07) press.push(Math.random() < 0.5 ? "uppercut" : "sweep");
         else if (r < 0.62) A.move = -dir; else if (r < 0.68) A.jump = true; else if (r < 0.78) A.blockT = 16;
       }
     }
@@ -649,8 +696,15 @@ footer { color:var(--muted); font-size:0.8rem; }
       const i1 = readInput(0), i2 = m.mode === "2p" ? readInput(1) : aiInput(m.p2, m.p1);
       pressQ.length = 0;
       step(m.p1, m.p2, i1.held, i1.press); step(m.p2, m.p1, i2.held, i2.press);
-      updateProjs(); separate(); timer--;
-      if (m.p1.hp <= 0 || m.p2.hp <= 0 || timer <= 0) endRound();
+      updateProjs(); separate();
+      if (m.mode === "train") {
+        if (m.p2.hp < m.p2.max * 0.3 && m.p2.state !== "hurt") m.p2.hp = m.p2.max;
+        m.p1.hp = m.p1.max;
+        if (m.p1.meter < 100 && !m.p1.atk) m.p1.meter = Math.min(100, m.p1.meter + 0.5);
+      } else {
+        timer--;
+        if (m.p1.hp <= 0 || m.p2.hp <= 0 || timer <= 0) endRound();
+      }
     } else if (phase === "roundEnd") {
       phaseT++;
       if (!(phaseT < 55 && (phaseT & 1))) {
@@ -721,10 +775,12 @@ footer { color:var(--muted); font-size:0.8rem; }
     let fl = [12 + walk * 14, 0], bl = [-12 - walk * 14, 0];
     if (air) { fl = [14, -30]; bl = [-10, -24]; }
     if (f.state === "kick" && f.atk) fl = [14 + e * ATK.kick.range * d.reach * 0.8, -36 - e * 8];
+    else if (f.state === "sweep" && f.atk) fl = [14 + e * ATK.sweep.range * d.reach * 0.85, -8];
     if (f.state === "ko") { fl = [12, -6]; bl = [-12, -6]; }
     let fh = [18, -66 + idle], bh = [-14, -62 + idle], orb = false;
     if (f.state === "punch" && f.atk) fh = [16 + e * ATK.punch.range * d.reach * 0.9, -80];
     else if (f.state === "special" && f.atk) { fh = [26 + e * 30, -76]; bh = [22 + e * 28, -70]; orb = e > 0.55; }
+    else if (f.state === "uppercut" && f.atk) { fh = [14 + e * 22, -84 - e * 52]; bh = [-10, -66]; }
     else if (f.state === "block") { fh = [22, -96]; bh = [16, -84]; }
     else if (f.state === "win") { fh = [20, -132]; bh = [-14, -128]; }
     else if (f.state === "hurt" || f.state === "ko") { fh = [4, -56]; bh = [-20, -64]; }
@@ -744,7 +800,7 @@ footer { color:var(--muted); font-size:0.8rem; }
     ctx.restore();
   }
   function drawProj(p) {
-    ctx.save(); ctx.translate(p.x, p.y);
+    ctx.save(); ctx.translate(p.x, p.y); ctx.scale(p.size || 1, p.size || 1);
     const c = p.owner.def.accent;
     for (let i = 3; i >= 1; i--) { ctx.globalAlpha = 0.18 * (4 - i); ctx.fillStyle = c; ctx.fillRect(-p.vx * i * 1.6 - 6, -6, 12, 12); }
     ctx.globalAlpha = 1; ctx.rotate(p.spin);
@@ -775,10 +831,14 @@ footer { color:var(--muted); font-size:0.8rem; }
     drawBar(m.p1, 24, 330, false); drawBar(m.p2, W - 24 - 330, 330, true);
     ctx.fillStyle = "rgba(8,12,24,0.85)"; hexPath(W / 2, 32, 28); ctx.fill(); ctx.strokeStyle = "#ffb020"; ctx.lineWidth = 2; ctx.stroke();
     ctx.font = "600 24px JetBrains Mono, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#e8eefc";
-    ctx.fillText(String(Math.max(0, Math.ceil(timer / 60))), W / 2, 33);
+    ctx.fillText(m.mode === "train" ? "∞" : String(Math.max(0, Math.ceil(timer / 60))), W / 2, 33);
     if (m.mode === "daily") {
       ctx.font = "600 10px JetBrains Mono, monospace"; ctx.fillStyle = "#93a3c0"; ctx.textBaseline = "alphabetic";
       ctx.fillText("DAILY #" + m.cfg.no + " · " + m.cfg.mod.name.toUpperCase(), W / 2, 92);
+    }
+    if (m.mode === "train") {
+      ctx.font = "600 10px JetBrains Mono, monospace"; ctx.fillStyle = "#93a3c0"; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+      ctx.fillText("TRAINING · THE DUMMY NEVER FIGHTS BACK", W / 2, 92);
     }
     for (let s = 0; s < 2; s++) {
       const f = s === 0 ? m.p1 : m.p2;
@@ -842,7 +902,7 @@ footer { color:var(--muted); font-size:0.8rem; }
   function fighterBtn(d, act, forOpp) {
     const locked = d.locked && !supporter && !(forOpp && sel.mode === "quick");
     return '<button type="button" class="fc" data-act="' + act + '" data-v="' + d.id + '"' + (locked ? " disabled" : "") + '><span class="sw" style="background:' + d.color + '"></span><b>' + d.name + "</b><small>" +
-      (locked ? "Supporter fighter. Tip 0.01 XNO to unlock." : d.blurb) + '</small><span class="bars"><span>HP</span>' + bar(d.hp, 130) + "<span>SPD</span>" + bar(d.speed, 3.8) + "<span>PWR</span>" + bar(d.power, 1.3) + "</span></button>";
+      (locked ? "Supporter fighter. Tip 0.01 XNO to unlock." : d.blurb + " Strike: " + d.sp.name + ".") + '</small><span class="bars"><span>HP</span>' + bar(d.hp, 130) + "<span>SPD</span>" + bar(d.speed, 3.8) + "<span>PWR</span>" + bar(d.power, 1.3) + "</span></button>";
   }
   let sel = { mode: "arcade", step: "p1", p1: null, p2: null };
   function menuScreen() {
@@ -852,23 +912,40 @@ footer { color:var(--muted); font-size:0.8rem; }
       '<button type="button" data-act="mode" data-v="arcade">Arcade ladder</button>' +
       '<button type="button" data-act="mode" data-v="quick">Quick fight</button>' +
       '<button type="button" data-act="mode" data-v="2p">2 players, one keyboard</button>' +
+      '<button type="button" data-act="mode" data-v="train">Training (no pressure)</button>' +
+      '<button type="button" data-act="moves">Moves and combos</button>' +
       '<button type="button" data-act="rules">How to play</button></div>' +
       '<p class="small">Daily streak: ' + liveStreak() + ". Ladder best: " + stats.ladderBest + "/4. Fights won: " + stats.won + ".</p>" +
       (m ? '<button type="button" data-act="resume">Back to the fight</button>' : ""));
   }
   function pickScreen() {
     let t, sub, act, forOpp = false;
-    if (sel.step === "p1") { t = sel.mode === "2p" ? "Player 1: choose a fighter" : "Choose your fighter"; sub = sel.mode === "arcade" ? "Arcade ladder" : sel.mode === "daily" ? "Daily #" + dailyFor(dateKey()).no : sel.mode === "quick" ? "Quick fight" : "2 players"; act = "pick"; }
+    if (sel.step === "p1") { t = sel.mode === "2p" ? "Player 1: choose a fighter" : "Choose your fighter"; sub = sel.mode === "arcade" ? "Arcade ladder" : sel.mode === "daily" ? "Daily #" + dailyFor(dateKey()).no : sel.mode === "train" ? "Training" : sel.mode === "quick" ? "Quick fight" : "2 players"; act = "pick"; }
     else { t = sel.mode === "2p" ? "Player 2: choose a fighter" : "Choose your opponent"; sub = "Quick fight"; act = "pick"; forOpp = true; if (sel.mode === "2p") sub = "2 players"; }
     modal(title(t, sub) + (sel.mode === "daily" && sel.step === "p1" ? dailyInfo() : "") + '<div class="grid">' + ROSTER.map(function (d) { return fighterBtn(d, act, forOpp); }).join("") + "</div>" + '<button type="button" data-act="menu">Back</button>');
   }
   function diffScreen() {
     modal(title("Pick a difficulty", "Quick fight") + "<p>Opponent: " + sel.p2.name + "</p>" +
-      '<div class="stack"><button type="button" data-act="diff" data-v="easy">Easy</button><button type="button" class="primary" data-act="diff" data-v="normal">Normal</button><button type="button" data-act="diff" data-v="hard">Hard</button></div>' +
+      '<div class="stack"><button type="button" data-act="diff" data-v="casual">Casual</button><button type="button" data-act="diff" data-v="easy">Easy</button><button type="button" class="primary" data-act="diff" data-v="normal">Normal</button><button type="button" data-act="diff" data-v="hard">Hard</button></div>' +
       '<button type="button" data-act="menu">Back</button>');
   }
+  function arcadeDiffScreen() {
+    modal(title("Pick a level", "Arcade ladder") + "<p>Fighter: " + sel.p1.name + ". Four opponents, ending with the Genesis boss.</p>" +
+      '<div class="stack"><button type="button" data-act="adiff" data-v="casual">Casual: relaxed opponents</button><button type="button" class="primary" data-act="adiff" data-v="standard">Standard</button><button type="button" data-act="adiff" data-v="hard">Hard</button></div>' +
+      '<button type="button" data-act="menu">Back</button>');
+  }
+  function movesScreen() {
+    const names = { punch: "Punch", kick: "Kick", uppercut: "Uppercut", sweep: "Sweep" };
+    modal(title("Moves and combos", "Move list") +
+      "<p><b>Punch</b>: fast. <b>Kick</b>: slower and harder. <b>Block</b>: hold to guard, or walk backwards when an attack comes. <b>Dash</b>: double-tap left or right.</p>" +
+      "<p><b>Uppercut</b>: hold Block, then press Punch. It launches the enemy. <b>Sweep</b>: hold Block, then press Kick. It is a low hit that jumpers avoid.</p>" +
+      "<p><b>Chain Strike</b> (full meter): " + ROSTER.map(function (d) { return d.name + ": " + d.sp.name; }).join(". ") + ".</p>" +
+      "<p><b>Combos</b>: land these hits in order inside one chain for bonus damage and meter.</p>" +
+      "<p>" + COMBOS.map(function (c) { return "<b>" + c.name + "</b>: " + c.seq.map(function (x) { return names[x]; }).join(", "); }).join("<br>") + "</p>" +
+      '<button type="button" class="primary" data-act="back">Back</button>');
+  }
   function pauseScreen() {
-    modal(title("Paused") + '<div class="stack"><button type="button" class="primary" data-act="resume">Resume</button><button type="button" data-act="restart">Restart this fight</button><button type="button" data-act="rules">How to play</button><button type="button" data-act="quit">Quit to menu</button></div>');
+    modal(title("Paused") + '<div class="stack"><button type="button" class="primary" data-act="resume">Resume</button><button type="button" data-act="restart">Restart this fight</button><button type="button" data-act="moves">Moves and combos</button><button type="button" data-act="rules">How to play</button><button type="button" data-act="quit">Quit to menu</button></div>');
   }
   function showResult(win) {
     const two = m.mode === "2p", last = m.mode === "arcade" && m.idx === m.ladder.length - 1;
@@ -917,8 +994,15 @@ footer { color:var(--muted); font-size:0.8rem; }
     let opp = dc.opp; if (opp === p1) opp = pool[(pool.indexOf(opp) + 1) % pool.length];
     startMatch({ mode: "daily", p1: p1, p2: opp, diff: dc.diff, mod: dc.tw, dk: dc.key, no: dc.no, arena: dc.arena.id });
   }
-  const LADDER_DIFF = ["easy", "normal", "normal", "hard"];
-  function startArcade(p1, ladder, idx) { startMatch({ mode: "arcade", p1: p1, p2: ladder[idx], diff: LADDER_DIFF[idx], ladder: ladder, idx: idx }); }
+  function startTrain(p1) {
+    const opp = ROSTER.filter(function (x) { return !x.locked && x !== p1; })[0];
+    startMatch({ mode: "train", p1: p1, p2: opp, diff: "dummy" });
+  }
+  const LADDERS = { casual: ["casual", "easy", "easy", "normal"], standard: ["easy", "normal", "normal", "hard"], hard: ["normal", "hard", "hard", "hard"] };
+  function startArcade(p1, ladder, idx, lvl) {
+    lvl = lvl || "standard";
+    startMatch({ mode: "arcade", p1: p1, p2: ladder[idx], diff: LADDERS[lvl][idx], ladder: ladder, idx: idx, lvl: lvl });
+  }
   function togglePause() {
     if (!m) return;
     if (!ov.hidden && paused) { paused = false; closeModal(); return; }
@@ -934,8 +1018,9 @@ footer { color:var(--muted); font-size:0.8rem; }
       const d = ROSTER.find(function (x) { return x.id === v; });
       if (sel.step === "p1") {
         sel.p1 = d;
-        if (sel.mode === "arcade") { startArcade(d, buildLadder(d), 0); }
+        if (sel.mode === "arcade") { arcadeDiffScreen(); }
         else if (sel.mode === "daily") { startDaily(d); }
+        else if (sel.mode === "train") { startTrain(d); }
         else { sel.step = "p2"; pickScreen(); }
       } else {
         sel.p2 = d;
@@ -945,8 +1030,11 @@ footer { color:var(--muted); font-size:0.8rem; }
     else if (act === "diff") startMatch({ mode: "quick", p1: sel.p1, p2: sel.p2, diff: v });
     else if (act === "menu") { m = null; phase = "menu"; paused = false; menuScreen(); }
     else if (act === "resume") { paused = false; closeModal(); }
-    else if (act === "restart") { const c = m.cfg; if (m.mode === "arcade") startArcade(c.p1, c.ladder, c.idx); else startMatch(c); }
-    else if (act === "next") { const c = m.cfg; startArcade(c.p1, c.ladder, c.idx + 1); }
+    else if (act === "restart") { const c = m.cfg; if (m.mode === "arcade") startArcade(c.p1, c.ladder, c.idx, c.lvl); else startMatch(c); }
+    else if (act === "next") { const c = m.cfg; startArcade(c.p1, c.ladder, c.idx + 1, c.lvl); }
+    else if (act === "adiff") startArcade(sel.p1, buildLadder(sel.p1), 0, v);
+    else if (act === "moves") movesScreen();
+    else if (act === "back") { if (m && paused) pauseScreen(); else menuScreen(); }
     else if (act === "quit") { m = null; phase = "menu"; paused = false; projs.length = 0; menuScreen(); }
     else if (act === "rules") rulesScreen();
     else if (act === "share") doShare();
@@ -1106,7 +1194,7 @@ footer { color:var(--muted); font-size:0.8rem; }
   menuScreen();
   requestAnimationFrame(frame);
   if (/[?&]selftest/.test(location.search)) {
-    window.__cc = { startMatch: startMatch, update: update, ROSTER: ROSTER, aiInput: aiInput, get m() { return m; }, get phase() { return phase; }, get projs() { return projs; }, stats: stats };
+    window.__cc = { TWISTS: TWISTS, dailyFor: dailyFor, startMatch: startMatch, update: update, ROSTER: ROSTER, aiInput: aiInput, get m() { return m; }, get texts() { return texts; }, startAtk: startAtk, get phase() { return phase; }, get projs() { return projs; }, stats: stats };
   }
 })();
 </script>

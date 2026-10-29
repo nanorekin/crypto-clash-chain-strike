@@ -20,7 +20,23 @@ A free, single-file browser fighting game. Land hits to build a chain, fill the 
 | Chain Strike | L or C | H | / |
 | Pause | Esc or P | | |
 
-On phones and tablets, on-screen buttons appear under the arena.
+On phones and tablets, on-screen buttons appear under the arena (in landscape they float over the bottom corners).
+
+### Moves and combos
+
+- **Dash:** double-tap left or right.
+- **Uppercut:** hold Block, then press Punch. It launches the enemy.
+- **Sweep:** hold Block, then press Kick. A low hit that jumpers avoid.
+- **Chain Strike (full meter):** each fighter has their own: Block Reward, Double Confirm, Tidal Slam, Fast Forward, Genesis Burst.
+- **Named combos** (land the three hits in order inside one chain for bonus damage and meter): Hash Rush (Punch, Punch, Kick), Fork Lift (Punch, Kick, Uppercut), Ledger Sweep (Kick, Kick, Sweep), Mempool Mix (Kick, Punch, Punch).
+
+### Daily challenge
+
+A new challenge every day at 00:00 UTC: a fixed opponent, arena, difficulty and rule twist, the same for everyone. Win one fight to clear it and keep your daily streak. Everything is stored in the player's browser.
+
+### Easier options
+
+Casual difficulty for the arcade ladder and quick fights, and a Training mode where the dummy never fights back and your Chain Strike refills.
 
 ## Deploy on GitHub Pages
 
