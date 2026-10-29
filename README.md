@@ -34,6 +34,14 @@ On phones and tablets, on-screen buttons appear under the arena (in landscape th
 
 A new challenge every day at 00:00 UTC: a fixed opponent, arena, difficulty and rule twist, the same for everyone. Win one fight to clear it and keep your daily streak. Everything is stored in the player's browser.
 
+### Fighters
+
+Nine fighters, each with a passive ability and their own Chain Strike: Hash Miner, Validator, Whale, Relay, Hodler, Rug Puller, Oracle, MEV Bot and the supporter-only Genesis. Everyone has about 30% more health than the base stats, so fights last a bit longer.
+
+### Music
+
+Original dark techno / industrial tracks, synthesised live in the browser with the Web Audio API (no audio files). A slower menu theme, a driving fight theme that changes key per arena, and extra intensity when someone is low on health. The Music and Sfx buttons at the top toggle them separately; the choice is remembered.
+
 ### Easier options
 
 Casual difficulty for the arcade ladder and quick fights, and a Training mode where the dummy never fights back and your Chain Strike refills.
